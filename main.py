@@ -170,42 +170,6 @@ def run_pygame_loop(initial_board: list[list[int]]):
 
     screen.fill(BORDER_COLOUR)
 
-    # # Draw the outer borders
-    # horizontal_border_width = (square_width * 3 + plain_border_width * 2) * 3 + bold_border_width * 2
-    # vertical_border_height = (square_height * 3 + plain_border_height * 2) * 3 + bold_border_height * 2
-    # top_border = pygame.Rect(
-    #     0,  # start x
-    #     0,  # start y
-    #     horizontal_border_width + 3 * bold_border_width,  # width
-    #     bold_border_height,  # height
-    # )
-    # left_border = pygame.Rect(
-    #     0,  # start x
-    #     bold_border_height,  # start y
-    #     bold_border_width,  # width
-    #     vertical_border_height + 2 * bold_border_width,  # height
-    # )
-    # right_border = pygame.Rect(
-    #     bold_border_width + horizontal_border_width,  # start x
-    #     bold_border_height,  # start y
-    #     bold_border_width,  # width
-    #     vertical_border_height + 2 * bold_border_width,  # height
-    # )
-    # bottom_border = pygame.Rect(
-    #     0,  # start x
-    #     bold_border_height + vertical_border_height,  # start y
-    #     horizontal_border_width + 3 * bold_border_width,  # width
-    #     bold_border_height,  # height
-    # )
-    # print(f"DEBUG: {top_border = }")
-    # print(f"DEBUG: {left_border = }")
-    # print(f"DEBUG: {right_border = }")
-    # print(f"DEBUG: {bottom_border = }")
-    # screen.fill(BORDER_COLOUR, top_border)
-    # screen.fill(BORDER_COLOUR, left_border)
-    # screen.fill(BORDER_COLOUR, right_border)
-    # screen.fill(BORDER_COLOUR, bottom_border)
-
     def get_x_of_square(col_indx: int, square_width: int, plain_border_width: int, bold_border_width: int):
         num_bold_borders = col_indx // 3
         num_plain_borders = col_indx - (num_bold_borders)
