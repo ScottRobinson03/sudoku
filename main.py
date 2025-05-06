@@ -3,7 +3,7 @@ from typing import Literal
 
 import pygame
 
-DIFFICULTY = "extreme"  # easy, medium, hard, very hard, extreme
+DIFFICULTY = "easy"  # easy, medium, hard, very hard, extreme
 TARGET_SCREEN_WIDTH = 800
 TARGET_SCREEN_HEIGHT = 800
 FPS = 60
