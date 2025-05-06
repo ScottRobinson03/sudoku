@@ -1,4 +1,5 @@
 import random
+from typing import Literal
 
 import pygame
 
@@ -21,7 +22,7 @@ if DIFFICULTY not in difficulty:
     raise ValueError(f"Invalid difficulty level: {DIFFICULTY}. Choose from {', '.join(list(difficulty.keys()))}.")
 
 
-def generate_random_sudoku() -> list[list[int]]:
+def generate_random_sudoku() -> tuple[list[list[int]], list[list[int]]]:
     """Generate a valid, fully solved Sudoku board using backtracking."""
 
     def is_valid(board, row, col, num):
@@ -43,27 +44,30 @@ def generate_random_sudoku() -> list[list[int]]:
 
         return True
 
-    def solve_board(board):
+    def solve_board(board) -> list[list[int]] | Literal[False]:
         """Solve the Sudoku board using backtracking."""
+        solved_board: list[list[int]] = [row.copy() for row in board]
         for row in range(9):
             for col in range(9):
-                if board[row][col] == 0:  # Find an empty cell
+                if solved_board[row][col] == 0:  # Find an empty cell
                     nums = [1, 2, 3, 4, 5, 6, 7, 8, 9]
                     random.shuffle(nums)
                     for num in nums:  # Try numbers 1-9
-                        if is_valid(board, row, col, num):
-                            board[row][col] = num
-                            if solve_board(board):
-                                return True
-                            board[row][col] = 0  # Backtrack
+                        if is_valid(solved_board, row, col, num):
+                            solved_board[row][col] = num
+                            if b := solve_board(solved_board):
+                                return b
+                            solved_board[row][col] = 0  # Backtrack
                     return False
-        return True
+        return solved_board
 
     # Start with an empty board
     board = [[0 for _ in range(9)] for _ in range(9)]
 
     # Fill the board using backtracking
-    solve_board(board)
+    solved_board = solve_board(board)
+    if not solved_board:
+        raise ValueError("Failed to generate a valid Sudoku board.")
 
     def create_puzzle(board, max_empty_cells=40) -> list[list[int]]:
         """Remove numbers from a solved Sudoku board to create a puzzle."""
@@ -88,6 +92,8 @@ def generate_random_sudoku() -> list[list[int]]:
             count_solutions([row.copy() for row in board])
             return solutions == 1
 
+        puzzle_board: list[list[int]] = [row.copy() for row in board]
+
         # Randomly shuffle cell positions
         cells = [(row, col) for row in range(9) for col in range(9)]
         random.shuffle(cells)
@@ -98,22 +104,24 @@ def generate_random_sudoku() -> list[list[int]]:
                 break
 
             # Temporarily remove the number
-            removed_value = board[row][col]
-            board[row][col] = 0
+            removed_value = puzzle_board[row][col]
+            puzzle_board[row][col] = 0
 
             # Check if the board still has a unique solution
-            if not has_unique_solution(board):
-                board[row][col] = removed_value  # Undo removal
+            if not has_unique_solution(puzzle_board):
+                puzzle_board[row][col] = removed_value  # Undo removal
             else:
                 num_empty_cells += 1
 
         print(f"DEBUG: {num_empty_cells = }")
-        return board
+        return puzzle_board
 
     # NB: The higher the max amount of empty cells, the more difficult the puzzle
     max_empty_cells = int((9 * 9) * difficulty[DIFFICULTY])
     print(f"DEBUG: {max_empty_cells = }")
-    return create_puzzle(board, max_empty_cells=max_empty_cells)
+
+    puzzle_board = create_puzzle(solved_board, max_empty_cells=max_empty_cells)
+    return solved_board, puzzle_board
 
 
 def get_subgrid(board: list[list[int]], row_indx: int, col_indx: int):
@@ -395,7 +403,6 @@ def run_pygame_loop(initial_board: list[list[int]]):
 
                     board[row_indx][col_indx] = new_number
                     selected = None
-                    draw_sudoku_to_terminal(board)
                     print(f"DEBUG: {board = }")
                     if is_valid_sudoku(board, allow_empty=False):
                         print("DEBUG: Sudoku solved!")
@@ -412,12 +419,13 @@ def run_pygame_loop(initial_board: list[list[int]]):
 
 def main():
     print(f"DEBUG: Generating Sudoku board with difficulty: {DIFFICULTY}")
-    board = generate_random_sudoku()
+    solved_board, puzzle_board = generate_random_sudoku()
 
-    draw_sudoku_to_terminal(board)
+    draw_sudoku_to_terminal(solved_board)
+    draw_sudoku_to_terminal(puzzle_board)
 
     print("DEBUG: Starting Pygame loop...")
-    run_pygame_loop(board)
+    run_pygame_loop(puzzle_board)
 
 
 if __name__ == "__main__":
