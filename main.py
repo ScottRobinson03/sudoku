@@ -119,6 +119,7 @@ def run_pygame_loop(initial_board: list[list[int]]):
 
     squares: list[pygame.Rect] = []
     selected: tuple[int, int] | None = None
+    solved = False
 
     # Calculate the size of the squares and borders.
     # Bold borders should be twice as thick as plain borders
@@ -236,15 +237,22 @@ def run_pygame_loop(initial_board: list[list[int]]):
                 # Draw the number
                 font = pygame.font.Font(None, 36)  # TODO: Figure out dynamic font size based on square size
                 font.set_italic(is_user_input)
-                text = font.render(text, False, "blue" if is_user_input else "black")
+                text = font.render(text, True, "blue" if is_user_input else "black")
 
                 text_rect = text.get_rect(center=(x + square_width // 2, y + square_height // 2))
+                screen.blit(text, text_rect)
+
+            if solved:
+                font = pygame.font.Font(None, 90)  # TODO: Figure out dynamic font size based on square size
+                text = font.render("           Congrats!\nYou solved the Sudoku!", True, "green")
+                text_rect = text.get_rect(center=(actual_screen_width // 2, actual_screen_height // 2))
                 screen.blit(text, text_rect)
 
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                print("DEBUG: Quit event received...")
                 running = False
                 continue
 
@@ -260,6 +268,9 @@ def run_pygame_loop(initial_board: list[list[int]]):
                 continue
 
             if event.type == pygame.KEYDOWN:
+                if solved:
+                    continue
+
                 if selected and chr(event.key).isdigit():
                     row_indx, col_indx = selected
                     new_number = int(chr(event.key))
@@ -275,11 +286,12 @@ def run_pygame_loop(initial_board: list[list[int]]):
                     selected = None
                     if is_valid_sudoku(board, allow_empty=False):
                         print("DEBUG: Sudoku solved!")
-                        running = False
-                        continue
+                        solved = True
+                        draw_board(board)
                 continue
 
-        draw_board(board)
+        if not solved:
+            draw_board(board)
 
         pygame.display.flip()
         clock.tick(FPS)
