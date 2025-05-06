@@ -507,6 +507,9 @@ def run_pygame_loop(initial_board: list[list[int]]):
                 print(f"DEBUG: NEW {square_width = } | {square_height = }")
                 print(f"DEBUG: NEW {plain_border_width = } | {plain_border_height = }")
                 print(f"DEBUG: NEW {bold_border_width = } | {bold_border_height = }")
+
+                if solved:
+                    draw_board(board)
                 continue
 
             if event.type == pygame.MOUSEBUTTONDOWN:
