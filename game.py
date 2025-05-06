@@ -208,7 +208,10 @@ class SudokuGame:
                 )
                 if rect.collidepoint(x, y):
                     if self.initial_board[row][col] == 0:  # Only allow selecting empty cells
-                        self.selected = (row, col)
+                        if self.selected == (row, col):
+                            self.selected = None
+                        else:
+                            self.selected = (row, col)
                     else:
                         self.selected = None
                     return
