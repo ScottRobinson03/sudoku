@@ -117,6 +117,9 @@ def run_pygame_loop(initial_board: list[list[int]]):
     pygame.display.set_caption("Sudoku")
     clock = pygame.time.Clock()
 
+    squares: list[pygame.Rect] = []
+    selected: tuple[int, int] | None = None
+
     # Calculate the size of the squares and borders.
     # Bold borders should be twice as thick as plain borders
     # Plain borders should be 1/8 of the square size
@@ -190,29 +193,51 @@ def run_pygame_loop(initial_board: list[list[int]]):
             + square_height * row_indx
         )
 
+    def get_square_from_coords(x: int, y: int):
+        if (x < bold_border_width or x > actual_screen_width - bold_border_width) or (
+            y < bold_border_height or y > actual_screen_height - bold_border_height
+        ):
+            print(f"DEBUG: Coords {x = } {y = } are on an outer border")
+            return None
+
+        for square in squares:
+            if square.collidepoint(x, y):
+                row_indx = squares.index(square) // 9
+                col_indx = squares.index(square) % 9
+                return row_indx, col_indx
+        else:
+            print(f"DEBUG: Coords {x = } {y = }are on an inner border")
+            return None
+
     def draw_board(board: list[list[int]]):
         for row_indx in range(9):
             for col_indx in range(9):
+                is_user_input = initial_board[row_indx][col_indx] == 0
+
                 x = get_x_of_square(col_indx, square_width, plain_border_width, bold_border_width)
                 y = get_y_of_square(row_indx, square_height, plain_border_height, bold_border_height)
 
                 # Draw the square
-                pygame.draw.rect(
-                    screen,
-                    "white",
-                    pygame.Rect(
-                        x,  # start x
-                        y,  # start y
-                        square_width,  # width
-                        square_height,  # height
-                    ),
+                squares.append(
+                    pygame.draw.rect(
+                        screen,
+                        "yellow" if selected == (row_indx, col_indx) else "white",
+                        pygame.Rect(
+                            x,  # start x
+                            y,  # start y
+                            square_width,  # width
+                            square_height,  # height
+                        ),
+                    )
                 )
 
                 text = str(board[row_indx][col_indx]) if board[row_indx][col_indx] else ""
 
                 # Draw the number
-                font = pygame.font.Font(None, 36)
-                text = font.render(text, True, "black")
+                font = pygame.font.Font(None, 36)  # TODO: Figure out dynamic font size based on square size
+                font.set_italic(is_user_input)
+                text = font.render(text, False, "blue" if is_user_input else "black")
+
                 text_rect = text.get_rect(center=(x + square_width // 2, y + square_height // 2))
                 screen.blit(text, text_rect)
 
@@ -221,6 +246,38 @@ def run_pygame_loop(initial_board: list[list[int]]):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+                continue
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = event.pos
+                square_pos = get_square_from_coords(x, y)
+                if square_pos:
+                    if selected == square_pos or initial_board[square_pos[0]][square_pos[1]] != 0:
+                        selected = None
+                    else:
+                        selected = square_pos
+
+                continue
+
+            if event.type == pygame.KEYDOWN:
+                if selected and chr(event.key).isdigit():
+                    row_indx, col_indx = selected
+                    new_number = int(chr(event.key))
+
+                    new_board = [row.copy() for row in board]
+                    new_board[row_indx][col_indx] = new_number
+
+                    if not is_valid_sudoku(new_board, allow_empty=True):
+                        print(f"DEBUG: {new_number} is an impossible number for {row_indx=} {col_indx=}")
+                        continue
+
+                    board[row_indx][col_indx] = int(chr(event.key))
+                    selected = None
+                    if is_valid_sudoku(board, allow_empty=False):
+                        print("DEBUG: Sudoku solved!")
+                        running = False
+                        continue
+                continue
 
         draw_board(board)
 
