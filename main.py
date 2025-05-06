@@ -1,29 +1,140 @@
+import random
+
 import pygame
 
+DIFFICULTY = "extreme"  # easy, medium, hard, very hard, extreme
 TARGET_SCREEN_WIDTH = 800
 TARGET_SCREEN_HEIGHT = 800
 FPS = 60
 
 BORDER_COLOUR = "black"
 
+difficulty = {
+    "very easy": 0.1,
+    "easy": 0.3,
+    "medium": 0.5,
+    "hard": 0.6,
+    "very hard": 0.7,
+    "extreme": 0.9,
+}
+if DIFFICULTY not in difficulty:
+    raise ValueError(f"Invalid difficulty level: {DIFFICULTY}. Choose from {', '.join(list(difficulty.keys()))}.")
 
-def is_valid_sudoku(board: list[list[int]], *, allow_empty: bool) -> bool:
-    def get_subgrid(board: list[list[int]], row_indx: int, col_indx: int):
-        start_row = (row_indx // 3) * 3
-        end_row = start_row + 3
 
-        start_col = (col_indx // 3) * 3
-        end_col = start_col + 3
+def generate_random_sudoku() -> list[list[int]]:
+    """Generate a valid, fully solved Sudoku board using backtracking."""
 
-        subgrid = []
-        for i in range(start_row, end_row):
-            for j in range(start_col, end_col):
-                subgrid.append(board[i][j])
-        return subgrid
+    def is_valid(board, row, col, num):
+        """Check if placing a number is valid in the current board."""
+        # Check the row
+        if num in board[row]:
+            return False
 
-    def get_column(board: list[list[int]], col_indx: int):
+        # Check the column
+        if num in [board[i][col] for i in range(9)]:
+            return False
+
+        # Check the 3x3 subgrid
+        start_row, start_col = 3 * (row // 3), 3 * (col // 3)
+        for i in range(start_row, start_row + 3):
+            for j in range(start_col, start_col + 3):
+                if board[i][j] == num:
+                    return False
+
+        return True
+
+    def solve_board(board):
+        """Solve the Sudoku board using backtracking."""
+        for row in range(9):
+            for col in range(9):
+                if board[row][col] == 0:  # Find an empty cell
+                    nums = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+                    random.shuffle(nums)
+                    for num in nums:  # Try numbers 1-9
+                        if is_valid(board, row, col, num):
+                            board[row][col] = num
+                            if solve_board(board):
+                                return True
+                            board[row][col] = 0  # Backtrack
+                    return False
+        return True
+
+    # Start with an empty board
+    board = [[0 for _ in range(9)] for _ in range(9)]
+
+    # Fill the board using backtracking
+    solve_board(board)
+
+    def create_puzzle(board, max_empty_cells=40) -> list[list[int]]:
+        """Remove numbers from a solved Sudoku board to create a puzzle."""
+
+        def has_unique_solution(board):
+            """Check if the board has a unique solution."""
+            solutions = 0
+
+            def count_solutions(b):
+                nonlocal solutions
+                for row in range(9):
+                    for col in range(9):
+                        if b[row][col] == 0:
+                            for num in range(1, 10):
+                                if is_valid(b, row, col, num):
+                                    b[row][col] = num
+                                    count_solutions(b)
+                                    b[row][col] = 0
+                            return
+                solutions += 1
+
+            count_solutions([row.copy() for row in board])
+            return solutions == 1
+
+        # Randomly shuffle cell positions
+        cells = [(row, col) for row in range(9) for col in range(9)]
+        random.shuffle(cells)
+
+        num_empty_cells = 0
+        for row, col in cells:
+            if num_empty_cells >= max_empty_cells:
+                break
+
+            # Temporarily remove the number
+            removed_value = board[row][col]
+            board[row][col] = 0
+
+            # Check if the board still has a unique solution
+            if not has_unique_solution(board):
+                board[row][col] = removed_value  # Undo removal
+            else:
+                num_empty_cells += 1
+
+        print(f"DEBUG: {num_empty_cells = }")
+        return board
+
+    # NB: The higher the max amount of empty cells, the more difficult the puzzle
+    max_empty_cells = int((9 * 9) * difficulty[DIFFICULTY])
+    print(f"DEBUG: {max_empty_cells = }")
+    return create_puzzle(board, max_empty_cells=max_empty_cells)
+
+
+def get_subgrid(board: list[list[int]], row_indx: int, col_indx: int):
+    start_row = (row_indx // 3) * 3
+    end_row = start_row + 3
+
+    start_col = (col_indx // 3) * 3
+    end_col = start_col + 3
+
+    subgrid: list[int] = []
+    for i in range(start_row, end_row):
+        for j in range(start_col, end_col):
+            subgrid.append(board[i][j])
+    return subgrid
+
+
+def get_column(board: list[list[int]], col_indx: int):
         return [row[col_indx] for row in board]
 
+
+def is_valid_sudoku(board: list[list[int]], *, allow_empty: bool) -> bool:
     for row_indx, row in enumerate(board):
         if row_indx > 8:
             # Too many rows
@@ -207,7 +318,7 @@ def run_pygame_loop(initial_board: list[list[int]]):
                 col_indx = squares.index(square) % 9
                 return row_indx, col_indx
         else:
-            print(f"DEBUG: Coords {x = } {y = }are on an inner border")
+            print(f"DEBUG: Coords {x = } {y = } are on an inner border")
             return None
 
     def draw_board(board: list[list[int]]):
@@ -271,7 +382,7 @@ def run_pygame_loop(initial_board: list[list[int]]):
                 if solved:
                     continue
 
-                if selected and chr(event.key).isdigit():
+                if selected and event.key in {pygame.key.key_code(num) for num in "1234567890"}:
                     row_indx, col_indx = selected
                     new_number = int(chr(event.key))
 
@@ -282,8 +393,10 @@ def run_pygame_loop(initial_board: list[list[int]]):
                         print(f"DEBUG: {new_number} is an impossible number for {row_indx=} {col_indx=}")
                         continue
 
-                    board[row_indx][col_indx] = int(chr(event.key))
+                    board[row_indx][col_indx] = new_number
                     selected = None
+                    draw_sudoku_to_terminal(board)
+                    print(f"DEBUG: {board = }")
                     if is_valid_sudoku(board, allow_empty=False):
                         print("DEBUG: Sudoku solved!")
                         solved = True
@@ -298,20 +411,12 @@ def run_pygame_loop(initial_board: list[list[int]]):
 
 
 def main():
-    board = [
-        [0, 2, 3, 4, 5, 6, 7, 8, 9],
-        [4, 5, 6, 7, 8, 0, 1, 2, 3],
-        [7, 8, 9, 1, 2, 3, 4, 5, 6],
-        [2, 0, 4, 5, 6, 7, 8, 9, 1],
-        [5, 6, 7, 8, 9, 1, 0, 3, 4],
-        [8, 9, 1, 2, 3, 4, 5, 0, 7],
-        [3, 4, 5, 6, 7, 8, 9, 1, 2],
-        [6, 7, 8, 0, 1, 2, 3, 4, 5],
-        [9, 1, 2, 3, 4, 0, 6, 7, 8],
-    ]
-    draw_sudoku_to_terminal(board)
-    print(is_valid_sudoku(board, allow_empty=True))
+    print(f"DEBUG: Generating Sudoku board with difficulty: {DIFFICULTY}")
+    board = generate_random_sudoku()
 
+    draw_sudoku_to_terminal(board)
+
+    print("DEBUG: Starting Pygame loop...")
     run_pygame_loop(board)
 
 
