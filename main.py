@@ -8,6 +8,9 @@ TARGET_SCREEN_WIDTH = 800
 TARGET_SCREEN_HEIGHT = 800
 FPS = 60
 
+MIN_WIDTH = 200
+MIN_HEIGHT = 200
+
 BORDER_COLOUR = "black"
 
 difficulty = {
@@ -236,8 +239,9 @@ def run_pygame_loop(initial_board: list[list[int]]):
     pygame.display.set_caption("Sudoku")
     clock = pygame.time.Clock()
 
-    squares: list[pygame.Rect] = []
+    squares: list[tuple[pygame.Rect, int]] = []
     selected: tuple[int, int] | None = None
+    prev_selected = None
     solved = False
 
     # Calculate the size of the squares and borders.
@@ -265,15 +269,35 @@ def run_pygame_loop(initial_board: list[list[int]]):
     # sw + .75sw + 9sw = SCREEN_WIDTH
     # 10.75sw = SCREEN_WIDTH
     # sw = SCREEN_WIDTH / 10.75
+    actual_screen_width = TARGET_SCREEN_WIDTH
+    actual_screen_height = TARGET_SCREEN_HEIGHT
 
-    square_width = int(TARGET_SCREEN_WIDTH // 10.75)
-    square_height = int(TARGET_SCREEN_HEIGHT // 10.75)
+    def get_square_width():
+        return int(actual_screen_width // 10.75)
 
-    plain_border_width = int(square_width // 8)
-    plain_border_height = int(square_height // 8)
+    def get_square_height():
+        return int(actual_screen_height // 10.75)
 
-    bold_border_width = 2 * plain_border_width
-    bold_border_height = 2 * plain_border_height
+    def get_plain_border_width():
+        return int(get_square_width() // 8)
+
+    def get_plain_border_height():
+        return int(get_square_height() // 8)
+
+    def get_bold_border_width():
+        return 2 * get_plain_border_width()
+
+    def get_bold_border_height():
+        return 2 * get_plain_border_height()
+
+    square_width = get_square_width()
+    square_height = get_square_height()
+
+    plain_border_width = get_plain_border_width()
+    plain_border_height = get_plain_border_height()
+
+    bold_border_width = get_bold_border_width()
+    bold_border_height = get_bold_border_height()
 
     print(f"DEBUG: {square_width = } | {square_height = }")
     print(f"DEBUG: {plain_border_width = } | {plain_border_height = }")
@@ -284,7 +308,7 @@ def run_pygame_loop(initial_board: list[list[int]]):
     actual_screen_height = square_height * 9 + plain_border_height * 6 + bold_border_height * 4
     print(f"DEBUG: {TARGET_SCREEN_WIDTH = } | {TARGET_SCREEN_HEIGHT = }")
     print(f"DEBUG: {actual_screen_width = } | {actual_screen_height = }")
-    screen = pygame.display.set_mode((actual_screen_width, actual_screen_height))
+    screen = pygame.display.set_mode((actual_screen_width, actual_screen_height), pygame.RESIZABLE)
 
     print(f"DEBUG: {4 * bold_border_width + 6 * plain_border_width + 9 * square_width = }")
     print(f"DEBUG: {4 * bold_border_height + 6 * plain_border_height + 9 * square_height = }")
@@ -321,7 +345,7 @@ def run_pygame_loop(initial_board: list[list[int]]):
             return None
 
         for square in squares:
-            if square.collidepoint(x, y):
+            if square[0].collidepoint(x, y):
                 row_indx = squares.index(square) // 9
                 col_indx = squares.index(square) % 9
                 return row_indx, col_indx
@@ -330,43 +354,105 @@ def run_pygame_loop(initial_board: list[list[int]]):
             return None
 
     def draw_board(board: list[list[int]]):
+        """Draw the Sudoku board. Implemented such that only changed squares are redrawn."""
+        nonlocal prev_selected
+        nonlocal squares
+
+        def draw_number(number: int, x: int, y: int, *, colour: str, italic: bool):
+            text = str(number) if number else " "
+
+            font = pygame.font.Font(None, 36)  # TODO: Figure out dynamic font size based on square size
+            font.set_italic(italic)
+            text = font.render(text, True, colour)
+
+            text_rect = text.get_rect(center=(x + square_width // 2, y + square_height // 2))
+            screen.blit(text, text_rect)
+
         for row_indx in range(9):
             for col_indx in range(9):
                 is_user_input = initial_board[row_indx][col_indx] == 0
 
-                x = get_x_of_square(col_indx, square_width, plain_border_width, bold_border_width)
-                y = get_y_of_square(row_indx, square_height, plain_border_height, bold_border_height)
+                if len(squares) > (square_indx := row_indx * 9 + col_indx):
+                    # This square has been drawn before
 
-                # Draw the square
-                squares.append(
-                    pygame.draw.rect(
-                        screen,
-                        "yellow" if selected == (row_indx, col_indx) else "white",
-                        pygame.Rect(
-                            x,  # start x
-                            y,  # start y
-                            square_width,  # width
-                            square_height,  # height
-                        ),
+                    if (new_number := board[row_indx][col_indx]) != squares[square_indx][1]:
+                        # The number in the square has changed
+                        x = squares[square_indx][0].x
+                        y = squares[square_indx][0].y
+
+                        # Draw the number
+                        squares[square_indx] = (squares[square_indx][0], new_number)
+                        draw_number(
+                            new_number,
+                            x,
+                            y,
+                            colour="blue",
+                            italic=True,
+                        )
+
+                else:
+                    # First time drawing this square
+
+                    x = get_x_of_square(col_indx, square_width, plain_border_width, bold_border_width)
+                    y = get_y_of_square(row_indx, square_height, plain_border_height, bold_border_height)
+
+                    number = board[row_indx][col_indx]
+                    squares.append(
+                        (
+                            pygame.draw.rect(
+                                screen,
+                                "white",
+                                pygame.Rect(
+                                    x,  # start x
+                                    y,  # start y
+                                    square_width,  # width
+                                    square_height,  # height
+                                ),
+                            ),
+                            number,
+                        )
                     )
+                    draw_number(
+                        number,
+                        x,
+                        y,
+                        colour="blue" if is_user_input else "black",
+                        italic=is_user_input,
+                    )
+
+        if prev_selected != selected:
+            print(f"DEBUG: {prev_selected = } {selected = }")
+            prev_selected_square = squares[prev_selected[0] * 9 + prev_selected[1]] if prev_selected else None
+            if prev_selected_square:
+                pygame.draw.rect(screen, "white", prev_selected_square[0])
+                draw_number(
+                    prev_selected_square[1],
+                    prev_selected_square[0].x,
+                    prev_selected_square[0].y,
+                    colour="blue",
+                    italic=True,
                 )
 
-                text = str(board[row_indx][col_indx]) if board[row_indx][col_indx] else ""
+            currently_selected_square = squares[selected[0] * 9 + selected[1]] if selected else None
+            if currently_selected_square:
+                pygame.draw.rect(screen, "yellow", currently_selected_square[0])
+                draw_number(
+                    currently_selected_square[1],
+                    currently_selected_square[0].x,
+                    currently_selected_square[0].y,
+                    colour="blue",
+                    italic=True,
+                )
 
-                # Draw the number
-                font = pygame.font.Font(None, 36)  # TODO: Figure out dynamic font size based on square size
-                font.set_italic(is_user_input)
-                text = font.render(text, True, "blue" if is_user_input else "black")
+            prev_selected = selected
 
-                text_rect = text.get_rect(center=(x + square_width // 2, y + square_height // 2))
-                screen.blit(text, text_rect)
+        if solved:
+            font = pygame.font.Font(None, 90)  # TODO: Figure out dynamic font size based on square size
+            text = font.render("           Congrats!\nYou solved the Sudoku!", True, "green")
+            text_rect = text.get_rect(center=(actual_screen_width // 2, actual_screen_height // 2))
+            screen.blit(text, text_rect)
 
-            if solved:
-                font = pygame.font.Font(None, 90)  # TODO: Figure out dynamic font size based on square size
-                text = font.render("           Congrats!\nYou solved the Sudoku!", True, "green")
-                text_rect = text.get_rect(center=(actual_screen_width // 2, actual_screen_height // 2))
-                screen.blit(text, text_rect)
-
+    prev_size = (actual_screen_width, actual_screen_height)
     running = True
     while running:
         for event in pygame.event.get():
@@ -375,10 +461,59 @@ def run_pygame_loop(initial_board: list[list[int]]):
                 running = False
                 continue
 
+            if event.type == pygame.VIDEORESIZE:
+                print("DEBUG: Resize event received...")
+
+                new_width = event.w
+                new_height = event.h
+
+                if new_width < MIN_WIDTH:
+                    screen = pygame.display.set_mode(prev_size, pygame.RESIZABLE)
+                    print(f"DEBUG: Resize event ignored (width too small). {new_width = } {new_height = }")
+                    continue
+
+                if new_height < MIN_HEIGHT:
+                    screen = pygame.display.set_mode(prev_size, pygame.RESIZABLE)
+                    print(f"DEBUG: Resize event ignored (height too small). {new_width = } {new_height = }")
+                    continue
+
+                if new_width > pygame.display.Info().current_w or new_height > pygame.display.Info().current_h:
+                    screen = pygame.display.set_mode(prev_size, pygame.RESIZABLE)
+                    print(f"DEBUG: Resize event ignored (too big). {new_width = } {new_height = }")
+                    continue
+
+                actual_screen_width = new_width
+                actual_screen_height = new_height
+
+                # TODO: "Normalize" the screen size to the match above algebraic equations
+                prev_size = event.size
+
+                screen = pygame.display.set_mode((actual_screen_width, actual_screen_height), pygame.RESIZABLE)
+                squares: list[tuple[pygame.Rect, int]] = []
+
+                print(f"DEBUG: OLD {square_width = } | {square_height = }")
+                print(f"DEBUG: OLD {plain_border_width = } | {plain_border_height = }")
+                print(f"DEBUG: OLD {bold_border_width = } | {bold_border_height = }")
+
+                square_width = get_square_width()
+                square_height = get_square_height()
+
+                plain_border_width = get_plain_border_width()
+                plain_border_height = get_plain_border_height()
+
+                bold_border_width = get_bold_border_width()
+                bold_border_height = get_bold_border_height()
+
+                print(f"DEBUG: NEW {square_width = } | {square_height = }")
+                print(f"DEBUG: NEW {plain_border_width = } | {plain_border_height = }")
+                print(f"DEBUG: NEW {bold_border_width = } | {bold_border_height = }")
+                continue
+
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = event.pos
                 square_pos = get_square_from_coords(x, y)
                 if square_pos:
+                    prev_selected = selected
                     if selected == square_pos or initial_board[square_pos[0]][square_pos[1]] != 0:
                         selected = None
                     else:
