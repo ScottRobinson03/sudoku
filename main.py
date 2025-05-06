@@ -1,3 +1,12 @@
+import pygame
+
+TARGET_SCREEN_WIDTH = 800
+TARGET_SCREEN_HEIGHT = 800
+FPS = 60
+
+BORDER_COLOUR = "black"
+
+
 def is_valid_sudoku(board: list[list[int]], *, allow_empty: bool) -> bool:
     def get_subgrid(board: list[list[int]], row_indx: int, col_indx: int):
         start_row = (row_indx // 3) * 3
@@ -99,20 +108,176 @@ def draw_sudoku_to_terminal(board: list[list[int]]):
     print(create_border("┗", "┷", "┛", "━", "┻", "╋", row_indx))
 
 
+def run_pygame_loop(initial_board: list[list[int]]):
+    pygame.init()
+
+    pygame.display.set_caption("Sudoku")
+    clock = pygame.time.Clock()
+
+    # Calculate the size of the squares and borders.
+    # Bold borders should be twice as thick as plain borders
+    # Plain borders should be 1/8 of the square size
+    #
+    # bb = bold border
+    # pb = plain border
+    # s  = square
+    #
+    # w = width
+    # h = height
+    #
+    # bbw = 2 * pbw
+    # bbh = 2 * pbh
+    #
+    # pbw = sw / 8
+    # pbh = sh / 8
+    #
+    # 4bbw + 6pbw + 9sw = SCREEN_WIDTH
+    # 4bbh + 6pbh + 9sh = SCREEN_HEIGHT
+    #
+    # Therefore:
+    # 4(2 * sw / 8) + 6(sw / 8) + 9sw = SCREEN_WIDTH
+    # sw + .75sw + 9sw = SCREEN_WIDTH
+    # 10.75sw = SCREEN_WIDTH
+    # sw = SCREEN_WIDTH / 10.75
+
+    square_width = int(TARGET_SCREEN_WIDTH // 10.75)
+    square_height = int(TARGET_SCREEN_HEIGHT // 10.75)
+
+    plain_border_width = int(square_width // 8)
+    plain_border_height = int(square_height // 8)
+
+    bold_border_width = 2 * plain_border_width
+    bold_border_height = 2 * plain_border_height
+
+    print(f"DEBUG: {square_width = } | {square_height = }")
+    print(f"DEBUG: {plain_border_width = } | {plain_border_height = }")
+    print(f"DEBUG: {bold_border_width = } | {bold_border_height = }")
+
+    # Adjust screen size according to the calculated square and border sizes.
+    actual_screen_width = square_width * 9 + plain_border_width * 6 + bold_border_width * 4
+    actual_screen_height = square_height * 9 + plain_border_height * 6 + bold_border_height * 4
+    print(f"DEBUG: {TARGET_SCREEN_WIDTH = } | {TARGET_SCREEN_HEIGHT = }")
+    print(f"DEBUG: {actual_screen_width = } | {actual_screen_height = }")
+    screen = pygame.display.set_mode((actual_screen_width, actual_screen_height))
+
+    print(f"DEBUG: {4 * bold_border_width + 6 * plain_border_width + 9 * square_width = }")
+    print(f"DEBUG: {4 * bold_border_height + 6 * plain_border_height + 9 * square_height = }")
+
+    board = [row.copy() for row in initial_board]
+
+    screen.fill(BORDER_COLOUR)
+
+    # # Draw the outer borders
+    # horizontal_border_width = (square_width * 3 + plain_border_width * 2) * 3 + bold_border_width * 2
+    # vertical_border_height = (square_height * 3 + plain_border_height * 2) * 3 + bold_border_height * 2
+    # top_border = pygame.Rect(
+    #     0,  # start x
+    #     0,  # start y
+    #     horizontal_border_width + 3 * bold_border_width,  # width
+    #     bold_border_height,  # height
+    # )
+    # left_border = pygame.Rect(
+    #     0,  # start x
+    #     bold_border_height,  # start y
+    #     bold_border_width,  # width
+    #     vertical_border_height + 2 * bold_border_width,  # height
+    # )
+    # right_border = pygame.Rect(
+    #     bold_border_width + horizontal_border_width,  # start x
+    #     bold_border_height,  # start y
+    #     bold_border_width,  # width
+    #     vertical_border_height + 2 * bold_border_width,  # height
+    # )
+    # bottom_border = pygame.Rect(
+    #     0,  # start x
+    #     bold_border_height + vertical_border_height,  # start y
+    #     horizontal_border_width + 3 * bold_border_width,  # width
+    #     bold_border_height,  # height
+    # )
+    # print(f"DEBUG: {top_border = }")
+    # print(f"DEBUG: {left_border = }")
+    # print(f"DEBUG: {right_border = }")
+    # print(f"DEBUG: {bottom_border = }")
+    # screen.fill(BORDER_COLOUR, top_border)
+    # screen.fill(BORDER_COLOUR, left_border)
+    # screen.fill(BORDER_COLOUR, right_border)
+    # screen.fill(BORDER_COLOUR, bottom_border)
+
+    def get_x_of_square(col_indx: int, square_width: int, plain_border_width: int, bold_border_width: int):
+        num_bold_borders = col_indx // 3
+        num_plain_borders = col_indx - (num_bold_borders)
+
+        return (
+            bold_border_width * (num_bold_borders + 1)  # NB: +1 to account for the left outer border
+            + plain_border_width * num_plain_borders
+            + square_width * col_indx
+        )
+
+    def get_y_of_square(row_indx: int, square_height: int, plain_border_height: int, bold_border_height: int):
+        num_bold_borders = row_indx // 3
+        num_plain_borders = row_indx - (num_bold_borders)
+
+        return (
+            bold_border_height * (num_bold_borders + 1)  # NB: +1 to account for the top outer border
+            + plain_border_height * num_plain_borders
+            + square_height * row_indx
+        )
+
+    def draw_board(board: list[list[int]]):
+        for row_indx in range(9):
+            for col_indx in range(9):
+                x = get_x_of_square(col_indx, square_width, plain_border_width, bold_border_width)
+                y = get_y_of_square(row_indx, square_height, plain_border_height, bold_border_height)
+
+                # Draw the square
+                pygame.draw.rect(
+                    screen,
+                    "white",
+                    pygame.Rect(
+                        x,  # start x
+                        y,  # start y
+                        square_width,  # width
+                        square_height,  # height
+                    ),
+                )
+
+                text = str(board[row_indx][col_indx]) if board[row_indx][col_indx] else ""
+
+                # Draw the number
+                font = pygame.font.Font(None, 36)
+                text = font.render(text, True, "black")
+                text_rect = text.get_rect(center=(x + square_width // 2, y + square_height // 2))
+                screen.blit(text, text_rect)
+
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        draw_board(board)
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
 def main():
     board = [
-        [1, 2, 3, 4, 5, 6, 7, 8, 9],
-        [4, 5, 6, 7, 8, 9, 1, 2, 3],
+        [0, 2, 3, 4, 5, 6, 7, 8, 9],
+        [4, 5, 6, 7, 8, 0, 1, 2, 3],
         [7, 8, 9, 1, 2, 3, 4, 5, 6],
-        [2, 3, 4, 5, 6, 7, 8, 9, 1],
-        [5, 6, 7, 8, 9, 1, 2, 3, 4],
-        [8, 9, 1, 2, 3, 4, 5, 6, 7],
+        [2, 0, 4, 5, 6, 7, 8, 9, 1],
+        [5, 6, 7, 8, 9, 1, 0, 3, 4],
+        [8, 9, 1, 2, 3, 4, 5, 0, 7],
         [3, 4, 5, 6, 7, 8, 9, 1, 2],
-        [6, 7, 8, 9, 1, 2, 3, 4, 5],
-        [9, 1, 2, 3, 4, 5, 6, 7, 8],
+        [6, 7, 8, 0, 1, 2, 3, 4, 5],
+        [9, 1, 2, 3, 4, 0, 6, 7, 8],
     ]
     draw_sudoku_to_terminal(board)
     print(is_valid_sudoku(board, allow_empty=False))
+
+    run_pygame_loop(board)
+
 
 if __name__ == "__main__":
     main()
