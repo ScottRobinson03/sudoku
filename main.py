@@ -38,6 +38,9 @@ def is_valid_sudoku(board: list[list[int]], *, allow_empty: bool) -> bool:
                 # Invalid number
                 return False
 
+            if number == 0:
+                continue
+
             if row.count(number) > 1:
                 # Duplicate number in row
                 return False
@@ -274,7 +277,7 @@ def main():
         [9, 1, 2, 3, 4, 0, 6, 7, 8],
     ]
     draw_sudoku_to_terminal(board)
-    print(is_valid_sudoku(board, allow_empty=False))
+    print(is_valid_sudoku(board, allow_empty=True))
 
     run_pygame_loop(board)
 
