@@ -96,6 +96,16 @@ class SudokuGame:
 
     def draw_board(self):
         """Draw the Sudoku board on the screen."""
+        if self.solved:
+            font = pygame.font.Font(None, 90)  # TODO: Figure out dynamic font size based on square size
+            text = font.render("           Congrats!\nYou solved the Sudoku!", True, "green")
+            text_rect = text.get_rect(center=(self.actual_screen_width // 2, self.actual_screen_height // 2))
+            self.screen.blit(text, text_rect)
+
+            if len(self.unsure_squares_indexes) == 0:
+                # There's nothing to draw, so return early
+                return
+
         for row_indx in range(9):
             for col_indx in range(9):
                 is_user_input = self.initial_board[row_indx][col_indx] == 0
@@ -153,6 +163,12 @@ class SudokuGame:
                     )
 
         if self.prev_selected != self.selected:
+            if self.prev_selected in self.correct_squares_indexes:
+                # The previously selected square is now known to be correct
+                # and has therefore already been redrawn, so don't draw it again
+                self.prev_selected = None
+                return
+
             print(f"DEBUG: {self.prev_selected = } {self.selected = }")
             prev_selected_square = (
                 self.squares[self.prev_selected[0] * 9 + self.prev_selected[1]] if self.prev_selected else None
@@ -179,12 +195,6 @@ class SudokuGame:
                 )
 
             self.prev_selected = self.selected
-
-        if self.solved:
-            font = pygame.font.Font(None, 90)  # TODO: Figure out dynamic font size based on square size
-            text = font.render("           Congrats!\nYou solved the Sudoku!", True, "green")
-            text_rect = text.get_rect(center=(self.actual_screen_width // 2, self.actual_screen_height // 2))
-            self.screen.blit(text, text_rect)
 
     def draw_buttons(self):
         """Draw the buttons on the screen."""
