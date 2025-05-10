@@ -40,12 +40,16 @@ class SudokuGame:
         # Bold borders should be twice as thick as plain borders
         # Plain borders should be 1/8 of the square size
         #
+        # btn = button
         # bb = bold border
         # pb = plain border
         # s  = square
         #
         # w = width
         # h = height
+        #
+        # btnw = 3sw + 2pbw
+        # btnh = sh
         #
         # bbw = 2 * pbw
         # bbh = 2 * pbh
@@ -54,23 +58,36 @@ class SudokuGame:
         # pbh = sh / 8
         #
         # 4bbw + 6pbw + 9sw = SCREEN_WIDTH
-        # 4bbh + 6pbh + 9sh = SCREEN_HEIGHT
+        # 5bbh + 6pbh + 9sh + btnh  = SCREEN_HEIGHT
         #
         # Therefore:
         # 4(2 * sw / 8) + 6(sw / 8) + 9sw = SCREEN_WIDTH
         # sw + .75sw + 9sw = SCREEN_WIDTH
         # 10.75sw = SCREEN_WIDTH
         # sw = SCREEN_WIDTH / 10.75
+        #
+        # 5(2 * sh / 8) + 6(sh / 8) + 10sh = SCREEN_HEIGHT
+        # 1.25sh + .75sh + 10sh = SCREEN_HEIGHT
+        # 12sh = SCREEN_HEIGHT
+        # sh = SCREEN_HEIGHT / 12
+
         self.square_width = int(self.actual_screen_width // 10.75)
-        self.square_height = int(self.actual_screen_height // 10.75)
+        self.square_height = int(self.actual_screen_height // 12)
+
         self.plain_border_width = int(self.square_width // 8)
         self.plain_border_height = int(self.square_height // 8)
+
+        self.btn_width = 3 * self.square_width + 2 * self.plain_border_width
+        self.btn_height = self.square_height
+
         self.bold_border_width = 2 * self.plain_border_width
         self.bold_border_height = 2 * self.plain_border_height
 
         # Adjust screen size based on calculated dimensions
         self.actual_screen_width = self.square_width * 9 + self.plain_border_width * 6 + self.bold_border_width * 4
-        self.actual_screen_height = self.square_height * 9 + self.plain_border_height * 6 + self.bold_border_height * 4
+        self.actual_screen_height = (
+            self.square_height * 9 + self.plain_border_height * 6 + self.bold_border_height * 5 + self.btn_height
+        )
         self.screen = pygame.display.set_mode((self.actual_screen_width, self.actual_screen_height), pygame.RESIZABLE)
 
     def draw_board(self):
@@ -164,6 +181,79 @@ class SudokuGame:
             text = font.render("           Congrats!\nYou solved the Sudoku!", True, "green")
             text_rect = text.get_rect(center=(self.actual_screen_width // 2, self.actual_screen_height // 2))
             self.screen.blit(text, text_rect)
+
+    def draw_buttons(self):
+        """Draw the buttons on the screen."""
+
+        def draw_verify_button():
+            verify_btn_x = self.get_x_of_square(0)
+            verify_btn_y = self.get_y_of_square(9)
+
+            print("DEBUG: verify_btn coords", verify_btn_x, verify_btn_y)
+
+            pygame.draw.rect(
+                self.screen,
+                "green",
+                pygame.Rect(
+                    verify_btn_x,
+                    verify_btn_y,
+                    self.btn_width,
+                    self.btn_height,
+                ),
+            )
+            verify_btn_text = "Verify"
+            font = pygame.font.Font(None, 36)  # TODO: Figure out dynamic font size based on square size
+            text = font.render(verify_btn_text, True, "black")
+            text_rect = text.get_rect(center=(verify_btn_x + self.btn_width // 2, verify_btn_y + self.btn_height // 2))
+            self.screen.blit(text, text_rect)
+
+        def draw_solve_button():
+            solve_btn_x = self.get_x_of_square(3)
+            solve_btn_y = self.get_y_of_square(9)
+
+            print("DEBUG: solve_btn coords", solve_btn_x, solve_btn_y)
+
+            pygame.draw.rect(
+                self.screen,
+                "lightblue",
+                pygame.Rect(
+                    solve_btn_x,
+                    solve_btn_y,
+                    self.btn_width,
+                    self.btn_height,
+                ),
+            )
+            solve_btn_text = "Solve"
+            font = pygame.font.Font(None, 36)
+            text = font.render(solve_btn_text, True, "black")
+            text_rect = text.get_rect(center=(solve_btn_x + self.btn_width // 2, solve_btn_y + self.btn_height // 2))
+            self.screen.blit(text, text_rect)
+
+        def draw_hint_button():
+            hint_btn_x = self.get_x_of_square(6)
+            hint_btn_y = self.get_y_of_square(9)
+
+            print("DEBUG: hint_btn coords", hint_btn_x, hint_btn_y)
+
+            pygame.draw.rect(
+                self.screen,
+                "orange",
+                pygame.Rect(
+                    hint_btn_x,
+                    hint_btn_y,
+                    self.btn_width,
+                    self.btn_height,
+                ),
+            )
+            hint_btn_text = "Hint"
+            font = pygame.font.Font(None, 36)
+            text = font.render(hint_btn_text, True, "black")
+            text_rect = text.get_rect(center=(hint_btn_x + self.btn_width // 2, hint_btn_y + self.btn_height // 2))
+            self.screen.blit(text, text_rect)
+
+        draw_verify_button()
+        draw_solve_button()
+        draw_hint_button()
 
     def draw_number(self, number, x, y, colour="black", italic=False):
         text = str(number) if number else " "
@@ -265,11 +355,15 @@ class SudokuGame:
         self.actual_screen_height = new_height
         self.calculate_dimensions()
 
+        self.draw_buttons()
+
         if self.solved:
             self.draw_board()
 
     def game_loop(self):
         """Main game loop."""
+        self.draw_buttons()
+
         running = True
         while running:
             for event in pygame.event.get():
