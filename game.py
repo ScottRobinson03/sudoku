@@ -291,6 +291,34 @@ class SudokuGame:
 
     def handle_mouse_click(self, pos: tuple[int, int]):
         """Handle mouse click events to select a square."""
+
+        def handle_verify_button_clicked():
+            print("DEBUG: Verify button clicked")
+            incorrect_square_indexes = SudokuValidator.get_incorrect_squares(self.solved_board, self.board)
+            for unsure_square_indx in self.unsure_squares_indexes.copy():
+                row_indx, col_indx = unsure_square_indx
+
+                square_indx = row_indx * 9 + col_indx
+                square_rect, square_number = self.squares[square_indx]
+
+                if unsure_square_indx in incorrect_square_indexes:
+                    colour = "red"
+                    self.incorrect_squares_indexes.add(unsure_square_indx)
+                else:
+                    colour = "green"  # TODO: Use a colour with better constrast on white background
+                    self.correct_squares_indexes.add(unsure_square_indx)
+
+                self.unsure_squares_indexes.discard(unsure_square_indx)
+
+                pygame.draw.rect(self.screen, "white", square_rect)
+                self.draw_number(
+                    square_number,
+                    square_rect.x,
+                    square_rect.y,
+                    colour=colour,
+                    italic=False,
+                )
+
         x, y = pos
 
         # TODO: Possibly refactor to utilise `self.squares` instead of this for loop? Maybe refactor into get_cell_indexes_at_pos()?
@@ -310,33 +338,7 @@ class SudokuGame:
                         # TODO: Make button detection more dynamic (e.g. `self.buttons` list)
 
                         if col_indx in range(3):
-                            print("DEBUG: Verify button clicked")
-                            incorrect_square_indexes = SudokuValidator.get_incorrect_squares(
-                                self.solved_board, self.board
-                            )
-                            for unsure_square_indx in self.unsure_squares_indexes.copy():
-                                row_indx, col_indx = unsure_square_indx
-
-                                square_indx = row_indx * 9 + col_indx
-                                square_rect, square_number = self.squares[square_indx]
-
-                                if unsure_square_indx in incorrect_square_indexes:
-                                    colour = "red"
-                                    self.incorrect_squares_indexes.add(unsure_square_indx)
-                                else:
-                                    colour = "green"  # TODO: Use a colour with better constrast on white background
-                                    self.correct_squares_indexes.add(unsure_square_indx)
-
-                                self.unsure_squares_indexes.discard(unsure_square_indx)
-
-                                pygame.draw.rect(self.screen, "white", square_rect)
-                                self.draw_number(
-                                    square_number,
-                                    square_rect.x,
-                                    square_rect.y,
-                                    colour=colour,
-                                    italic=False,
-                                )
+                            handle_verify_button_clicked()
 
                         elif col_indx in range(3, 6):
                             print("DEBUG: Solve button clicked")
