@@ -305,6 +305,7 @@ class SudokuGame:
                 if rect.collidepoint(x, y):
                     if row_indx == 9:
                         # Clicked on the button row
+                        self.selected = None
 
                         # TODO: Make button detection more dynamic (e.g. `self.buttons` list)
 
