@@ -365,6 +365,39 @@ class SudokuGame:
                     )
                     self.solved = True
 
+        def handle_hint_button_clicked():
+            if self.solved:
+                return
+
+            print("DEBUG: Hint button clicked")
+
+            for row_indx, row in enumerate(self.board):
+                for col_indx, current_number in enumerate(row):
+                    square_indx = row_indx * 9 + col_indx
+                    square_rect = self.squares[square_indx][0]
+
+                    if current_number != 0:
+                        continue
+
+                    correct_number = self.solved_board[row_indx][col_indx]
+
+                    pygame.draw.rect(self.screen, "white", square_rect)
+                    self.draw_number(
+                        correct_number,
+                        square_rect.x,
+                        square_rect.y,
+                        colour="green",
+                        italic=False,
+                    )
+                    self.board[row_indx][col_indx] = correct_number
+                    self.squares[square_indx] = (square_rect, correct_number)
+                    self.correct_squares_indexes.add((row_indx, col_indx))
+
+                    if SudokuValidator.is_valid_sudoku(self.board, allow_empty=False):
+                        self.solved = True
+
+                    return  # Only show one hint at a time
+
         x, y = pos
 
         # TODO: Possibly refactor to utilise `self.squares` instead of this for loop? Maybe refactor into get_cell_indexes_at_pos()?
@@ -391,7 +424,7 @@ class SudokuGame:
                             handle_solve_button_clicked()
 
                         elif col_indx in range(6, 9):
-                            print("DEBUG: Hint button clicked")
+                            handle_hint_button_clicked()
                         else:
                             print("WARNING: Invalid column clicked on button row???")
 
