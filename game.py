@@ -8,6 +8,9 @@ MIN_WIDTH = 200
 MIN_HEIGHT = 200
 FPS = 60
 
+CORRECT_COLOUR = "chartreuse3"
+WRONG_COLOUR = "red"
+HINT_COLOUR = "orange"
 
 class SudokuGame:
     """Main Sudoku game class."""
@@ -98,7 +101,7 @@ class SudokuGame:
         """Draw the Sudoku board on the screen."""
         if self.solved:
             font = pygame.font.Font(None, 90)  # TODO: Figure out dynamic font size based on square size
-            text = font.render("           Congrats!\nYou solved the Sudoku!", True, "green")
+            text = font.render("           Congrats!\nYou solved the Sudoku!", True, CORRECT_COLOUR)
             text_rect = text.get_rect(center=(self.actual_screen_width // 2, self.actual_screen_height // 2))
             self.screen.blit(text, text_rect)
 
@@ -200,14 +203,14 @@ class SudokuGame:
         """Draw the buttons on the screen."""
 
         def draw_verify_button():
-            verify_btn_x = self.get_x_of_square(0)
+            verify_btn_x = self.get_x_of_square(3)
             verify_btn_y = self.get_y_of_square(9)
 
             print("DEBUG: verify_btn coords", verify_btn_x, verify_btn_y)
 
             pygame.draw.rect(
                 self.screen,
-                "green",
+                "bisque",
                 pygame.Rect(
                     verify_btn_x,
                     verify_btn_y,
@@ -222,14 +225,14 @@ class SudokuGame:
             self.screen.blit(text, text_rect)
 
         def draw_solve_button():
-            solve_btn_x = self.get_x_of_square(3)
+            solve_btn_x = self.get_x_of_square(6)
             solve_btn_y = self.get_y_of_square(9)
 
             print("DEBUG: solve_btn coords", solve_btn_x, solve_btn_y)
 
             pygame.draw.rect(
                 self.screen,
-                "lightblue",
+                CORRECT_COLOUR,
                 pygame.Rect(
                     solve_btn_x,
                     solve_btn_y,
@@ -244,14 +247,14 @@ class SudokuGame:
             self.screen.blit(text, text_rect)
 
         def draw_hint_button():
-            hint_btn_x = self.get_x_of_square(6)
+            hint_btn_x = self.get_x_of_square(0)
             hint_btn_y = self.get_y_of_square(9)
 
             print("DEBUG: hint_btn coords", hint_btn_x, hint_btn_y)
 
             pygame.draw.rect(
                 self.screen,
-                "orange",
+                HINT_COLOUR,
                 pygame.Rect(
                     hint_btn_x,
                     hint_btn_y,
@@ -316,10 +319,10 @@ class SudokuGame:
                 square_rect, square_number = self.squares[square_indx]
 
                 if unsure_square_indx in incorrect_square_indexes:
-                    colour = "red"
+                    colour = WRONG_COLOUR
                     self.incorrect_squares_indexes.add(unsure_square_indx)
                 else:
-                    colour = "green"  # TODO: Use a colour with better constrast on white background
+                    colour = CORRECT_COLOUR
                     self.correct_squares_indexes.add(unsure_square_indx)
 
                 self.unsure_squares_indexes.discard(unsure_square_indx)
@@ -349,13 +352,13 @@ class SudokuGame:
                         "black"
                         if self.initial_board[row_indx][col_indx] != 0
                         # entered correct number
-                        else "green"
+                        else CORRECT_COLOUR
                         if number_in_square == correct_number
                         # didn't enter a number
                         else "grey"
                         if number_in_square == 0
                         # entered wrong number
-                        else "red"
+                        else WRONG_COLOUR
                     )
 
                     self.board[row_indx][col_indx] = correct_number
@@ -396,7 +399,7 @@ class SudokuGame:
                         correct_number,
                         square_rect.x,
                         square_rect.y,
-                        colour="green",
+                        colour=HINT_COLOUR,
                         italic=False,
                     )
                     self.board[row_indx][col_indx] = correct_number
@@ -428,13 +431,13 @@ class SudokuGame:
                         # TODO: Make button detection more dynamic (e.g. `self.buttons` list)
 
                         if col_indx in range(3):
-                            handle_verify_button_clicked()
+                            handle_hint_button_clicked()
 
                         elif col_indx in range(3, 6):
-                            handle_solve_button_clicked()
+                            handle_verify_button_clicked()
 
                         elif col_indx in range(6, 9):
-                            handle_hint_button_clicked()
+                            handle_solve_button_clicked()
                         else:
                             print("WARNING: Invalid column clicked on button row???")
 
