@@ -32,3 +32,12 @@ class SudokuValidator:
                 if SudokuValidator.get_subgrid(board, row_indx, col_indx).count(number) > 1:
                     return False
         return True
+
+    @staticmethod
+    def get_incorrect_squares(solved_board: list[list[int]], puzzle_board: list[list[int]]) -> set[tuple[int, int]]:
+        incorrect_squares: set[tuple[int, int]] = set()
+        for row_indx, row in enumerate(puzzle_board):
+            for col_indx, number in enumerate(row):
+                if number != 0 and number != solved_board[row_indx][col_indx]:
+                    incorrect_squares.add((row_indx, col_indx))
+        return incorrect_squares

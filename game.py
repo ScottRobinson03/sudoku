@@ -25,6 +25,10 @@ class SudokuGame:
         self.solved = False
         self.squares = []
 
+        self.incorrect_squares_indexes: set[tuple[int, int]] = set()
+        self.correct_squares_indexes: set[tuple[int, int]] = set()
+        self.unsure_squares_indexes: set[tuple[int, int]] = set()
+
         self.actual_screen_width = target_screen_width
         self.actual_screen_height = target_screen_height
 
@@ -288,7 +292,9 @@ class SudokuGame:
     def handle_mouse_click(self, pos):
         """Handle mouse click events to select a square."""
         x, y = pos
-        for row in range(9):
+
+        # TODO: Possibly refactor to utilise `self.squares` instead of this for loop? Maybe refactor into get_cell_indexes_at_pos()?
+        for row in range(10):  # NB: 9 rows for squares + 1 row for buttons
             for col in range(9):
                 rect = pygame.Rect(
                     self.get_x_of_square(col),
@@ -297,7 +303,54 @@ class SudokuGame:
                     self.square_height,
                 )
                 if rect.collidepoint(x, y):
-                    if self.initial_board[row][col] == 0:  # Only allow selecting empty cells
+                    if row == 9:
+                        # Clicked on the button row
+
+                        # TODO: Make button detection more dynamic (e.g. `self.buttons` list)
+
+                        if col in range(3):
+                            print("DEBUG: Verify button clicked")
+                            incorrect_square_indexes = SudokuValidator.get_incorrect_squares(
+                                self.solved_board, self.board
+                            )
+                            for unsure_square_indx in self.unsure_squares_indexes.copy():
+                                row_indx, col_indx = unsure_square_indx
+
+                                square_indx = row_indx * 9 + col_indx
+                                square_rect, square_number = self.squares[square_indx]
+
+                                if unsure_square_indx in incorrect_square_indexes:
+                                    colour = "red"
+                                    self.incorrect_squares_indexes.add(unsure_square_indx)
+                                else:
+                                    colour = "green"  # TODO: Use a colour with better constrast on white background
+                                    self.correct_squares_indexes.add(unsure_square_indx)
+
+                                self.unsure_squares_indexes.discard(unsure_square_indx)
+
+                                pygame.draw.rect(self.screen, "white", square_rect)
+                                self.draw_number(
+                                    square_number,
+                                    square_rect.x,
+                                    square_rect.y,
+                                    colour=colour,
+                                    italic=False,
+                                )
+
+                        elif col in range(3, 6):
+                            print("DEBUG: Solve button clicked")
+                        elif col in range(6, 9):
+                            print("DEBUG: Hint button clicked")
+                        else:
+                            print("WARNING: Invalid column clicked on button row???")
+
+                        return
+
+                    # Clicked on a square
+                    if (
+                        # Only allow selecting initially empty cells that aren't already known to be correct
+                        self.initial_board[row][col] == 0 and (row, col) not in self.correct_squares_indexes
+                    ):
                         if self.selected == (row, col):
                             self.selected = None
                         else:
@@ -313,6 +366,7 @@ class SudokuGame:
 
         if self.selected and key in {pygame.key.key_code(num) for num in "1234567890"}:
             row_indx, col_indx = self.selected
+
             new_number = int(chr(key))
 
             new_board = [row.copy() for row in self.board]
@@ -323,7 +377,11 @@ class SudokuGame:
                 return
 
             self.board[row_indx][col_indx] = new_number
+
+            self.unsure_squares_indexes.add(self.selected)
+            self.incorrect_squares_indexes.discard(self.selected)
             self.selected = None
+
             print(f"DEBUG: {self.board = }")
             if SudokuValidator.is_valid_sudoku(self.board, allow_empty=False):
                 print("DEBUG: Sudoku solved!")
@@ -372,6 +430,7 @@ class SudokuGame:
                     break
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
+                    print("DEBUG: CLICK")
                     self.handle_mouse_click(event.pos)
                     continue
 
