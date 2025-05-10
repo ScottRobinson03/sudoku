@@ -293,7 +293,11 @@ class SudokuGame:
         """Handle mouse click events to select a square."""
 
         def handle_verify_button_clicked():
+            if self.solved:
+                return
+
             print("DEBUG: Verify button clicked")
+
             incorrect_square_indexes = SudokuValidator.get_incorrect_squares(self.solved_board, self.board)
             for unsure_square_indx in self.unsure_squares_indexes.copy():
                 row_indx, col_indx = unsure_square_indx
@@ -319,6 +323,48 @@ class SudokuGame:
                     italic=False,
                 )
 
+        def handle_solve_button_clicked():
+            if self.solved:
+                return
+
+            print("DEBUG: Solve button clicked")
+
+            for row_indx, row in enumerate(self.solved_board):
+                for col_indx, correct_number in enumerate(row):
+                    square_indx = row_indx * 9 + col_indx
+                    square_rect, number_in_square = self.squares[square_indx]
+
+                    colour = (
+                        # was pre-solved
+                        "black"
+                        if self.initial_board[row_indx][col_indx] != 0
+                        # entered correct number
+                        else "green"
+                        if number_in_square == correct_number
+                        # didn't enter a number
+                        else "grey"
+                        if number_in_square == 0
+                        # entered wrong number
+                        else "red"
+                    )
+
+                    self.board[row_indx][col_indx] = correct_number
+                    self.squares[square_indx] = (square_rect, correct_number)
+
+                    self.correct_squares_indexes.add((row_indx, col_indx))
+                    self.unsure_squares_indexes.discard((row_indx, col_indx))
+                    self.incorrect_squares_indexes.discard((row_indx, col_indx))
+
+                    pygame.draw.rect(self.screen, "white", square_rect)
+                    self.draw_number(
+                        correct_number,
+                        square_rect.x,
+                        square_rect.y,
+                        colour=colour,
+                        italic=False,
+                    )
+                    self.solved = True
+
         x, y = pos
 
         # TODO: Possibly refactor to utilise `self.squares` instead of this for loop? Maybe refactor into get_cell_indexes_at_pos()?
@@ -333,6 +379,7 @@ class SudokuGame:
                 if rect.collidepoint(x, y):
                     if row_indx == 9:
                         # Clicked on the button row
+                        # BUG: Currently the click detection doesn't handle clicking the button on what would-be a square column border
                         self.selected = None
 
                         # TODO: Make button detection more dynamic (e.g. `self.buttons` list)
@@ -341,7 +388,8 @@ class SudokuGame:
                             handle_verify_button_clicked()
 
                         elif col_indx in range(3, 6):
-                            print("DEBUG: Solve button clicked")
+                            handle_solve_button_clicked()
+
                         elif col_indx in range(6, 9):
                             print("DEBUG: Hint button clicked")
                         else:
