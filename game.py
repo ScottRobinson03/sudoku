@@ -269,46 +269,46 @@ class SudokuGame:
         text_rect = text.get_rect(center=(x + self.square_width // 2, y + self.square_height // 2))
         self.screen.blit(text, text_rect)
 
-    def get_x_of_square(self, col):
+    def get_x_of_square(self, col_indx: int):
         """Calculate the x-coordinate of a square."""
-        num_bold_borders = col // 3
-        num_plain_borders = col - num_bold_borders
+        num_bold_borders = col_indx // 3
+        num_plain_borders = col_indx - num_bold_borders
         return (
             self.bold_border_width * (num_bold_borders + 1)
             + self.plain_border_width * num_plain_borders
-            + self.square_width * col
+            + self.square_width * col_indx
         )
 
-    def get_y_of_square(self, row):
+    def get_y_of_square(self, row_indx: int):
         """Calculate the y-coordinate of a square."""
-        num_bold_borders = row // 3
-        num_plain_borders = row - num_bold_borders
+        num_bold_borders = row_indx // 3
+        num_plain_borders = row_indx - num_bold_borders
         return (
             self.bold_border_height * (num_bold_borders + 1)
             + self.plain_border_height * num_plain_borders
-            + self.square_height * row
+            + self.square_height * row_indx
         )
 
-    def handle_mouse_click(self, pos):
+    def handle_mouse_click(self, pos: tuple[int, int]):
         """Handle mouse click events to select a square."""
         x, y = pos
 
         # TODO: Possibly refactor to utilise `self.squares` instead of this for loop? Maybe refactor into get_cell_indexes_at_pos()?
-        for row in range(10):  # NB: 9 rows for squares + 1 row for buttons
-            for col in range(9):
+        for row_indx in range(10):  # NB: 9 rows for squares + 1 row for buttons
+            for col_indx in range(9):
                 rect = pygame.Rect(
-                    self.get_x_of_square(col),
-                    self.get_y_of_square(row),
+                    self.get_x_of_square(col_indx),
+                    self.get_y_of_square(row_indx),
                     self.square_width,
                     self.square_height,
                 )
                 if rect.collidepoint(x, y):
-                    if row == 9:
+                    if row_indx == 9:
                         # Clicked on the button row
 
                         # TODO: Make button detection more dynamic (e.g. `self.buttons` list)
 
-                        if col in range(3):
+                        if col_indx in range(3):
                             print("DEBUG: Verify button clicked")
                             incorrect_square_indexes = SudokuValidator.get_incorrect_squares(
                                 self.solved_board, self.board
@@ -337,9 +337,9 @@ class SudokuGame:
                                     italic=False,
                                 )
 
-                        elif col in range(3, 6):
+                        elif col_indx in range(3, 6):
                             print("DEBUG: Solve button clicked")
-                        elif col in range(6, 9):
+                        elif col_indx in range(6, 9):
                             print("DEBUG: Hint button clicked")
                         else:
                             print("WARNING: Invalid column clicked on button row???")
@@ -349,12 +349,13 @@ class SudokuGame:
                     # Clicked on a square
                     if (
                         # Only allow selecting initially empty cells that aren't already known to be correct
-                        self.initial_board[row][col] == 0 and (row, col) not in self.correct_squares_indexes
+                        self.initial_board[row_indx][col_indx] == 0
+                        and (row_indx, col_indx) not in self.correct_squares_indexes
                     ):
-                        if self.selected == (row, col):
+                        if self.selected == (row_indx, col_indx):
                             self.selected = None
                         else:
-                            self.selected = (row, col)
+                            self.selected = (row_indx, col_indx)
                     else:
                         self.selected = None
                     return
