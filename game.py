@@ -471,7 +471,6 @@ class SudokuGame:
             if SudokuValidator.is_valid_sudoku(self.board, allow_empty=False):
                 print("DEBUG: Sudoku solved!")
                 self.solved = True
-                self.draw_board()
 
     def update_screen_size(self, new_width, new_height):
         """Handle screen resizing events."""
@@ -505,9 +504,10 @@ class SudokuGame:
 
     def game_loop(self):
         """Main game loop."""
-        self.draw_buttons()
+        self.draw_buttons()  # NB: We only need to draw the buttons once, since they don't change
 
         running = True
+        prev_solved = self.solved
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -527,8 +527,14 @@ class SudokuGame:
                     self.update_screen_size(event.w, event.h)
                     continue
 
-            if not self.solved:
-                self.draw_board()
+            if self.solved == prev_solved:
+                if not self.solved:
+                    self.draw_board()
+            else:
+                # Solved state was toggled
+                if self.solved:
+                    prev_solved = True
+                    self.draw_board()
 
             pygame.display.flip()
             self.clock.tick(FPS)
