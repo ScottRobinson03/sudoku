@@ -347,15 +347,11 @@ class SudokuGame:
                     square_indx = row_indx * 9 + col_indx
                     square_rect, number_in_square = self.squares[square_indx]
 
+                    if number_in_square == correct_number:
+                        continue
+
                     colour = (
-                        # was pre-solved
-                        "black"
-                        if self.initial_board[row_indx][col_indx] != 0
-                        # entered correct number
-                        else CORRECT_COLOUR
-                        if number_in_square == correct_number
-                        # didn't enter a number
-                        else "grey"
+                        "grey"
                         if number_in_square == 0
                         # entered wrong number
                         else WRONG_COLOUR
