@@ -324,6 +324,8 @@ class SudokuGame:
                     if self.initial_board[row_indx][col_indx] == 0 and coords not in known_correct_squares:
                         pygame.draw.rect(self.screen, "white", square_rect)
                         self.draw_number(correct_number, square_rect.x, square_rect.y, colour=CORRECT_COLOUR)
+                        self.unsure_squares_coords.discard(coords)
+                        self.correct_squares_coords.add(coords)
                     continue
 
                 self.board[row_indx][col_indx] = correct_number
