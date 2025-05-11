@@ -1,3 +1,4 @@
+from typing import Callable, TypedDict
 import pygame
 
 from generator import SudokuGenerator
@@ -14,6 +15,16 @@ HINT_COLOUR = "orange"
 SOLVED_COLOUR = "grey"
 INPUT_COLOUR = "blue"
 
+
+class Button(TypedDict):
+    """Button class for the Sudoku game."""
+
+    name: str
+    colour: str
+    on_click: Callable
+    rect: pygame.Rect | None
+
+
 class SudokuGame:
     """Main Sudoku game class."""
 
@@ -29,6 +40,12 @@ class SudokuGame:
         self.selected: tuple[int, int] | None = None
         self.solved = False
         self.squares = []
+
+        self.buttons: list[Button] = [
+            {"name": "Hint", "colour": HINT_COLOUR, "on_click": self.handle_hint_button_clicked, "rect": None},
+            {"name": "Verify", "colour": "bisque", "on_click": self.handle_verify_button_clicked, "rect": None},
+            {"name": "Solve", "colour": CORRECT_COLOUR, "on_click": self.handle_solve_button_clicked, "rect": None},
+        ]
 
         self.hinted_squares_coords: set[tuple[int, int]] = set()
         self.solved_squares_coords: set[tuple[int, int]] = set()
@@ -59,7 +76,6 @@ class SudokuGame:
         # w = width
         # h = height
         #
-        # btnw = 3sw + 2pbw
         # btnh = sh
         #
         # bbw = 2 * pbw
@@ -90,14 +106,20 @@ class SudokuGame:
         self.plain_border_width = int(self.square_width // 8)
         self.plain_border_height = int(self.square_height // 8)
 
-        self.btn_width = 3 * self.square_width + 2 * self.plain_border_width
-        self.btn_height = self.square_height
-
         self.bold_border_width = 2 * self.plain_border_width
         self.bold_border_height = 2 * self.plain_border_height
 
         # Adjust screen size based on calculated dimensions
         self.actual_screen_width = self.square_width * 9 + self.plain_border_width * 6 + self.bold_border_width * 4
+
+        self.btn_height = self.square_height
+        num_btns = len(self.buttons)
+        # n = number of buttons
+        # width of all buttons with separates = actual_screen_width
+        # n(btn_width) + (n + 1)(bold_border_width) = actual_screen_width
+        # btn_width = (actual_screen_width - (n + 1)(bold_border_width)) / n
+        self.btn_width = (self.actual_screen_width - (num_btns + 1) * self.bold_border_width) / num_btns
+
         self.actual_screen_height = (
             self.square_height * 9 + self.plain_border_height * 6 + self.bold_border_height * 5 + self.btn_height
         )
@@ -233,75 +255,26 @@ class SudokuGame:
     def draw_buttons(self):
         """Draw the buttons on the screen."""
 
-        def draw_verify_button():
-            verify_btn_x = self.get_x_of_square(3)
-            verify_btn_y = self.get_y_of_square(9)
+        for btn_indx, button in enumerate(self.buttons):
+            button_x = self.bold_border_width + (btn_indx * (self.btn_width + self.bold_border_width))
+            button_y = self.get_y_of_square(9)
 
-            print("DEBUG: verify_btn coords", verify_btn_x, verify_btn_y)
+            button["rect"] = pygame.Rect(
+                button_x,
+                button_y,
+                self.btn_width,
+                self.btn_height,
+            )
 
             pygame.draw.rect(
                 self.screen,
-                "bisque",
-                pygame.Rect(
-                    verify_btn_x,
-                    verify_btn_y,
-                    self.btn_width,
-                    self.btn_height,
-                ),
+                button["colour"],
+                button["rect"],
             )
-            verify_btn_text = "Verify"
             font = pygame.font.Font(None, 36)  # TODO: Figure out dynamic font size based on square size
-            text = font.render(verify_btn_text, True, "black")
-            text_rect = text.get_rect(center=(verify_btn_x + self.btn_width // 2, verify_btn_y + self.btn_height // 2))
+            text = font.render(button["name"], True, "black")
+            text_rect = text.get_rect(center=(button_x + self.btn_width // 2, button_y + self.btn_height // 2))
             self.screen.blit(text, text_rect)
-
-        def draw_solve_button():
-            solve_btn_x = self.get_x_of_square(6)
-            solve_btn_y = self.get_y_of_square(9)
-
-            print("DEBUG: solve_btn coords", solve_btn_x, solve_btn_y)
-
-            pygame.draw.rect(
-                self.screen,
-                CORRECT_COLOUR,
-                pygame.Rect(
-                    solve_btn_x,
-                    solve_btn_y,
-                    self.btn_width,
-                    self.btn_height,
-                ),
-            )
-            solve_btn_text = "Solve"
-            font = pygame.font.Font(None, 36)
-            text = font.render(solve_btn_text, True, "black")
-            text_rect = text.get_rect(center=(solve_btn_x + self.btn_width // 2, solve_btn_y + self.btn_height // 2))
-            self.screen.blit(text, text_rect)
-
-        def draw_hint_button():
-            hint_btn_x = self.get_x_of_square(0)
-            hint_btn_y = self.get_y_of_square(9)
-
-            print("DEBUG: hint_btn coords", hint_btn_x, hint_btn_y)
-
-            pygame.draw.rect(
-                self.screen,
-                HINT_COLOUR,
-                pygame.Rect(
-                    hint_btn_x,
-                    hint_btn_y,
-                    self.btn_width,
-                    self.btn_height,
-                ),
-            )
-            hint_btn_text = "Hint"
-            font = pygame.font.Font(None, 36)
-            text = font.render(hint_btn_text, True, "black")
-            text_rect = text.get_rect(center=(hint_btn_x + self.btn_width // 2, hint_btn_y + self.btn_height // 2))
-            self.screen.blit(text, text_rect)
-
-        draw_verify_button()
-        draw_solve_button()
-        draw_hint_button()
 
     def draw_number(self, number, x, y, colour="black"):
         text = str(number) if number else " "
@@ -333,121 +306,130 @@ class SudokuGame:
             + self.square_height * row_indx
         )
 
-    def handle_mouse_click(self, pos: tuple[int, int]):
-        """Handle mouse click events to select a square."""
+    def handle_verify_button_clicked(self):
+        if self.solved:
+            return
 
-        def handle_verify_button_clicked():
-            if self.solved:
-                return
+        print("DEBUG: Verify button clicked")
 
-            print("DEBUG: Verify button clicked")
+        incorrect_square_indexes = SudokuValidator.get_incorrect_squares(self.solved_board, self.board)
+        for unsure_square_indx in self.unsure_squares_coords.copy():
+            row_indx, col_indx = unsure_square_indx
 
-            incorrect_square_indexes = SudokuValidator.get_incorrect_squares(self.solved_board, self.board)
-            for unsure_square_indx in self.unsure_squares_coords.copy():
-                row_indx, col_indx = unsure_square_indx
+            square_indx = row_indx * 9 + col_indx
+            square_rect, square_number = self.squares[square_indx]
 
+            if unsure_square_indx in incorrect_square_indexes:
+                colour = WRONG_COLOUR
+                self.incorrect_squares_coords.add(unsure_square_indx)
+            else:
+                colour = CORRECT_COLOUR
+                self.correct_squares_coords.add(unsure_square_indx)
+
+            self.unsure_squares_coords.discard(unsure_square_indx)
+
+            pygame.draw.rect(self.screen, "white", square_rect)
+            self.draw_number(
+                square_number,
+                square_rect.x,
+                square_rect.y,
+                colour=colour,
+            )
+
+    def handle_solve_button_clicked(self):
+        if self.solved:
+            return
+
+        print("DEBUG: Solve button clicked")
+
+        for row_indx, row in enumerate(self.solved_board):
+            for col_indx, correct_number in enumerate(row):
+                coords = (row_indx, col_indx)
                 square_indx = row_indx * 9 + col_indx
-                square_rect, square_number = self.squares[square_indx]
+                square_rect, number_in_square = self.squares[square_indx]
 
-                if unsure_square_indx in incorrect_square_indexes:
-                    colour = WRONG_COLOUR
-                    self.incorrect_squares_coords.add(unsure_square_indx)
+                if number_in_square == correct_number:
+                    # NB: Don't have to include solved squares, since it's impossible to have solved squares in an unsolved game
+                    known_correct_squares = self.correct_squares_coords.union(self.hinted_squares_coords)
+
+                    if self.initial_board[row_indx][col_indx] == 0 and coords not in known_correct_squares:
+                        pygame.draw.rect(self.screen, "white", square_rect)
+                        self.draw_number(correct_number, square_rect.x, square_rect.y, colour=CORRECT_COLOUR)
+                    continue
+
+                self.board[row_indx][col_indx] = correct_number
+                self.squares[square_indx] = (square_rect, correct_number)
+
+                if number_in_square == 0:
+                    # hasn't entered a number yet
+                    colour = SOLVED_COLOUR
+                    self.solved_squares_coords.add(coords)
                 else:
-                    colour = CORRECT_COLOUR
-                    self.correct_squares_coords.add(unsure_square_indx)
+                    # has entered a number, but is was wrong
+                    colour = WRONG_COLOUR
+                    self.incorrect_squares_coords.add(coords)
 
-                self.unsure_squares_coords.discard(unsure_square_indx)
+                self.unsure_squares_coords.discard(coords)
 
                 pygame.draw.rect(self.screen, "white", square_rect)
                 self.draw_number(
-                    square_number,
+                    correct_number,
                     square_rect.x,
                     square_rect.y,
                     colour=colour,
                 )
 
-        def handle_solve_button_clicked():
-            if self.solved:
-                return
+                self.solved = True
 
-            print("DEBUG: Solve button clicked")
+    def handle_hint_button_clicked(self):
+        if self.solved:
+            return
 
-            for row_indx, row in enumerate(self.solved_board):
-                for col_indx, correct_number in enumerate(row):
-                    coords = (row_indx, col_indx)
-                    square_indx = row_indx * 9 + col_indx
-                    square_rect, number_in_square = self.squares[square_indx]
+        print("DEBUG: Hint button clicked")
 
-                    if number_in_square == correct_number:
-                        # NB: Don't have to include solved squares, since it's impossible to have solved squares in an unsolved game
-                        known_correct_squares = self.correct_squares_coords.union(self.hinted_squares_coords)
+        for row_indx, row in enumerate(self.board):
+            for col_indx, current_number in enumerate(row):
+                if current_number != 0:
+                    continue
 
-                        if self.initial_board[row_indx][col_indx] == 0 and coords not in known_correct_squares:
-                            pygame.draw.rect(self.screen, "white", square_rect)
-                            self.draw_number(correct_number, square_rect.x, square_rect.y, colour=CORRECT_COLOUR)
-                        continue
+                coords = (row_indx, col_indx)
+                square_indx = row_indx * 9 + col_indx
+                square_rect = self.squares[square_indx][0]
 
-                    self.board[row_indx][col_indx] = correct_number
-                    self.squares[square_indx] = (square_rect, correct_number)
+                correct_number = self.solved_board[row_indx][col_indx]
 
-                    if number_in_square == 0:
-                        # hasn't entered a number yet
-                        colour = SOLVED_COLOUR
-                        self.solved_squares_coords.add(coords)
-                    else:
-                        # has entered a number, but is was wrong
-                        colour = WRONG_COLOUR
-                        self.incorrect_squares_coords.add(coords)
+                pygame.draw.rect(self.screen, "white", square_rect)
+                self.draw_number(
+                    correct_number,
+                    square_rect.x,
+                    square_rect.y,
+                    colour=HINT_COLOUR,
+                )
+                self.board[row_indx][col_indx] = correct_number
+                self.squares[square_indx] = (square_rect, correct_number)
+                self.hinted_squares_coords.add(coords)
 
-                    self.unsure_squares_coords.discard(coords)
-
-                    pygame.draw.rect(self.screen, "white", square_rect)
-                    self.draw_number(
-                        correct_number,
-                        square_rect.x,
-                        square_rect.y,
-                        colour=colour,
-                    )
-
+                if SudokuValidator.is_valid_sudoku(self.board, allow_empty=False):
                     self.solved = True
 
-        def handle_hint_button_clicked():
-            if self.solved:
-                return
+                return  # Only show one hint at a time
 
-            print("DEBUG: Hint button clicked")
-
-            for row_indx, row in enumerate(self.board):
-                for col_indx, current_number in enumerate(row):
-                    if current_number != 0:
-                        continue
-
-                    coords = (row_indx, col_indx)
-                    square_indx = row_indx * 9 + col_indx
-                    square_rect = self.squares[square_indx][0]
-
-                    correct_number = self.solved_board[row_indx][col_indx]
-
-                    pygame.draw.rect(self.screen, "white", square_rect)
-                    self.draw_number(
-                        correct_number,
-                        square_rect.x,
-                        square_rect.y,
-                        colour=HINT_COLOUR,
-                    )
-                    self.board[row_indx][col_indx] = correct_number
-                    self.squares[square_indx] = (square_rect, correct_number)
-                    self.hinted_squares_coords.add(coords)
-
-                    if SudokuValidator.is_valid_sudoku(self.board, allow_empty=False):
-                        self.solved = True
-
-                    return  # Only show one hint at a time
+    def handle_mouse_click(self, pos: tuple[int, int]):
+        """Handle mouse click events to select a square."""
 
         x, y = pos
 
         # TODO: Possibly refactor to utilise `self.squares` instead of this for loop? Maybe refactor into get_cell_indexes_at_pos()?
         for row_indx in range(10):  # NB: 9 rows for squares + 1 row for buttons
+            if row_indx == 9:
+                # Clicked on a button
+                for button in self.buttons:
+                    if button["rect"] and button["rect"].collidepoint(x, y):
+                        # Button clicked
+                        button["on_click"]()
+                        return
+                continue
+
             for col_indx in range(9):
                 rect = pygame.Rect(
                     self.get_x_of_square(col_indx),
@@ -456,26 +438,6 @@ class SudokuGame:
                     self.square_height,
                 )
                 if rect.collidepoint(x, y):
-                    if row_indx == 9:
-                        # Clicked on the button row
-                        # BUG: Currently the click detection doesn't handle clicking the button on what would-be a square column border
-                        self.selected = None
-
-                        # TODO: Make button detection more dynamic (e.g. `self.buttons` list)
-
-                        if col_indx in range(3):
-                            handle_hint_button_clicked()
-
-                        elif col_indx in range(3, 6):
-                            handle_verify_button_clicked()
-
-                        elif col_indx in range(6, 9):
-                            handle_solve_button_clicked()
-                        else:
-                            print("WARNING: Invalid column clicked on button row???")
-
-                        return
-
                     # Clicked on a square
 
                     # NB: Don't have to include solved squares, since it's
