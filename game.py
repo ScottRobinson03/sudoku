@@ -379,7 +379,10 @@ class SudokuGame:
                     square_rect, number_in_square = self.squares[square_indx]
 
                     if number_in_square == correct_number:
-                        if self.initial_board[row_indx][col_indx] == 0 and coords not in self.correct_squares_coords:
+                        # NB: Don't have to include solved squares, since it's impossible to have solved squares in an unsolved game
+                        known_correct_squares = self.correct_squares_coords.union(self.hinted_squares_coords)
+
+                        if self.initial_board[row_indx][col_indx] == 0 and coords not in known_correct_squares:
                             pygame.draw.rect(self.screen, "white", square_rect)
                             self.draw_number(correct_number, square_rect.x, square_rect.y, colour=CORRECT_COLOUR)
                         continue
