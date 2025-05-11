@@ -1,4 +1,6 @@
+from functools import partial
 from typing import Callable, TypedDict
+
 import pygame
 
 from generator import SudokuGenerator
@@ -16,13 +18,27 @@ SOLVED_COLOUR = "grey"
 INPUT_COLOUR = "blue"
 
 
-class Button(TypedDict):
-    """Button class for the Sudoku game."""
+class BaseButton(TypedDict):
+    """Base button class."""
 
-    name: str
     colour: str
     on_click: Callable
     rect: pygame.Rect | None
+
+
+class ImageButton(BaseButton):
+    """Image button class."""
+
+    image: pygame.Surface
+
+
+class TextButton(BaseButton):
+    """Text button class."""
+
+    text: str
+
+
+type Button = ImageButton | TextButton
 
 
 class SudokuGame:
@@ -49,6 +65,7 @@ class SudokuGame:
         # w = width
         # h = height
         #
+        # btnw = sw
         # btnh = sh
         #
         # bbw = 2 * pbw
@@ -57,24 +74,24 @@ class SudokuGame:
         # pbw = sw / 8
         # pbh = sh / 8
         #
-        # 4bbw + 6pbw + 9sw = SCREEN_WIDTH
-        # 5bbh + 6pbh + 9sh + btnh  = SCREEN_HEIGHT
+        # 5bbw + 7pbw + 9sw + 2btnw = SCREEN_WIDTH
+        # 4bbh + 6pbh + 9sh  = SCREEN_HEIGHT
         #
         # Therefore:
-        # 4(2 * sw / 8) + 6(sw / 8) + 9sw = SCREEN_WIDTH
-        # sw + .75sw + 9sw = SCREEN_WIDTH
-        # 10.75sw = SCREEN_WIDTH
-        # sw = SCREEN_WIDTH / 10.75
+        # 5(2 * sw / 8) + 7(sw / 8) + 9sw + 2(sw) = SCREEN_WIDTH
+        # sw + .875sw + 9sw + 2sw = SCREEN_WIDTH
+        # 12.875sw = SCREEN_WIDTH
+        # sw = SCREEN_WIDTH / 12.875
         #
-        # 5(2 * sh / 8) + 6(sh / 8) + 10sh = SCREEN_HEIGHT
-        # 1.25sh + .75sh + 10sh = SCREEN_HEIGHT
-        # 12sh = SCREEN_HEIGHT
-        # sh = SCREEN_HEIGHT / 12
+        # 4(2 * sh / 8) + 6(sh / 8) + 9sh = SCREEN_HEIGHT
+        # sh + .75sh + 9sh = SCREEN_HEIGHT
+        # 10.75sh = SCREEN_HEIGHT
+        # sh = SCREEN_HEIGHT / 10.75
 
         self.prev_size = (self.actual_screen_width, self.actual_screen_height)
 
-        self.square_width = int(self.actual_screen_width // 10.75)
-        self.square_height = int(self.actual_screen_height // 12)
+        self.square_width = int(self.actual_screen_width // 12.875)
+        self.square_height = int(self.actual_screen_height // 10.75)
 
         self.plain_border_width = int(self.square_width // 8)
         self.plain_border_height = int(self.square_height // 8)
@@ -82,20 +99,19 @@ class SudokuGame:
         self.bold_border_width = 2 * self.plain_border_width
         self.bold_border_height = 2 * self.plain_border_height
 
-        # Adjust screen size based on calculated dimensions
-        self.actual_screen_width = self.square_width * 9 + self.plain_border_width * 6 + self.bold_border_width * 4
-
+        self.btn_width = self.square_width
         self.btn_height = self.square_height
-        num_btns = len(self.buttons)
-        # n = number of buttons
-        # width of all buttons with separates = actual_screen_width
-        # n(btn_width) + (n + 1)(bold_border_width) = actual_screen_width
-        # btn_width = (actual_screen_width - (n + 1)(bold_border_width)) / n
-        self.btn_width = (self.actual_screen_width - (num_btns + 1) * self.bold_border_width) / num_btns
+        for button in self.buttons:
+            if "image" in button:
+                button["image"] = pygame.transform.scale(button["image"], (self.btn_width, self.btn_height))
 
-        self.actual_screen_height = (
-            self.square_height * 9 + self.plain_border_height * 6 + self.bold_border_height * 5 + self.btn_height
+        # Adjust screen size based on calculated dimensions
+
+        self.actual_screen_width = (
+            self.square_width * 9 + self.plain_border_width * 7 + self.bold_border_width * 5 + self.btn_width * 2
         )
+        self.actual_screen_height = self.square_height * 9 + self.plain_border_height * 6 + self.bold_border_height * 4
+
         self.screen = pygame.display.set_mode((self.actual_screen_width, self.actual_screen_height), pygame.RESIZABLE)
 
         self.resized_since_last_board_draw = True
@@ -225,8 +241,11 @@ class SudokuGame:
         """Draw the buttons on the screen."""
 
         for btn_indx, button in enumerate(self.buttons):
-            button_x = self.bold_border_width + (btn_indx * (self.btn_width + self.bold_border_width))
-            button_y = self.get_y_of_square(9)
+            button_x = self.get_x_of_square(9 if btn_indx % 2 == 0 else 10)
+            button_y = self.get_y_of_square(
+                # NB: `2 + ...` since first two rows are for mistake count & timer
+                2 + (btn_indx // 2)
+            )
 
             button["rect"] = pygame.Rect(
                 button_x,
@@ -240,10 +259,23 @@ class SudokuGame:
                 button["colour"],
                 button["rect"],
             )
-            font = pygame.font.Font(None, 36)  # TODO: Figure out dynamic font size based on square size
-            text = font.render(button["name"], True, "black")
-            text_rect = text.get_rect(center=(button_x + self.btn_width // 2, button_y + self.btn_height // 2))
-            self.screen.blit(text, text_rect)
+
+            if "image" in button:
+                # Draw the image
+                img = button["image"]
+                img_rect = img.get_rect(center=(button_x + self.btn_width // 2, button_y + self.btn_height // 2))
+                self.screen.blit(img, img_rect)
+
+            elif "text" in button:
+                print(f"DEBUG: Drawing button with text: {button['text']}")
+                # Draw the text
+                font = pygame.font.Font(None, 36)  # TODO: Figure out dynamic font size based on button size
+                text = font.render(button["text"], True, "blue")
+                text_rect = text.get_rect(center=(button_x + self.btn_width // 2, button_y + self.btn_height // 2))
+                self.screen.blit(text, text_rect)
+
+            else:
+                print("WARNING: No image or text found for button. This is unexpected.")
 
     def draw_number(self, number, x, y, colour="black"):
         text = str(number) if number else " "
@@ -392,8 +424,8 @@ class SudokuGame:
 
         # TODO: Possibly refactor to utilise `self.squares` instead of this for loop? Maybe refactor into get_cell_indexes_at_pos()?
         for row_indx in range(10):  # NB: 9 rows for squares + 1 row for buttons
-            if row_indx == 9:
-                # Clicked on a button
+            if row_indx > 8:
+                # Clicked on sidebar
                 for button in self.buttons:
                     if button["rect"] and button["rect"].collidepoint(x, y):
                         # Button clicked
@@ -535,10 +567,34 @@ class SudokuGame:
         self.squares = []
 
         self.buttons: list[Button] = [
-            {"name": "Hint", "colour": HINT_COLOUR, "on_click": self.handle_hint_button_clicked, "rect": None},
-            {"name": "Verify", "colour": "bisque", "on_click": self.handle_verify_button_clicked, "rect": None},
-            {"name": "Solve", "colour": CORRECT_COLOUR, "on_click": self.handle_solve_button_clicked, "rect": None},
-            {"name": "New Game", "colour": "red", "on_click": self.play, "rect": None},
+            {
+                "image": pygame.image.load("assets/hint.png"),
+                "colour": HINT_COLOUR,
+                "on_click": self.handle_hint_button_clicked,
+                "rect": None,
+            },
+            {
+                "image": pygame.image.load("assets/verify.png"),
+                "colour": "bisque",
+                "on_click": self.handle_verify_button_clicked,
+                "rect": None,
+            },
+            {
+                "image": pygame.image.load("assets/solve.png"),
+                "colour": CORRECT_COLOUR,
+                "on_click": self.handle_solve_button_clicked,
+                "rect": None,
+            },
+            {"image": pygame.image.load("assets/new-game.png"), "colour": "red", "on_click": self.play, "rect": None},
+            *[
+                {
+                    "text": str(num),
+                    "colour": "white",
+                    "on_click": partial(lambda n,: self.handle_key_press(pygame.key.key_code(str(n))), num),
+                    "rect": None,
+                }
+                for num in range(10)
+            ],
         ]
 
         self.hinted_squares_coords: set[tuple[int, int]] = set()
