@@ -30,11 +30,11 @@ class SudokuGame:
         self.solved = False
         self.squares = []
 
-        self.hinted_squares_indexes: set[tuple[int, int]] = set()
-        self.solved_squares_indexes: set[tuple[int, int]] = set()
-        self.incorrect_squares_indexes: set[tuple[int, int]] = set()
-        self.correct_squares_indexes: set[tuple[int, int]] = set()
-        self.unsure_squares_indexes: set[tuple[int, int]] = set()
+        self.hinted_squares_coords: set[tuple[int, int]] = set()
+        self.solved_squares_coords: set[tuple[int, int]] = set()
+        self.incorrect_squares_coords: set[tuple[int, int]] = set()
+        self.correct_squares_coords: set[tuple[int, int]] = set()
+        self.unsure_squares_coords: set[tuple[int, int]] = set()
 
         self.actual_screen_width = target_screen_width
         self.actual_screen_height = target_screen_height
@@ -119,13 +119,13 @@ class SudokuGame:
                         "black"
                         if not is_user_input
                         else HINT_COLOUR
-                        if coords in self.hinted_squares_indexes
+                        if coords in self.hinted_squares_coords
                         else SOLVED_COLOUR
-                        if coords in self.solved_squares_indexes
+                        if coords in self.solved_squares_coords
                         else CORRECT_COLOUR
-                        if coords in self.correct_squares_indexes
+                        if coords in self.correct_squares_coords
                         else WRONG_COLOUR
-                        if coords in self.incorrect_squares_indexes
+                        if coords in self.incorrect_squares_coords
                         else INPUT_COLOUR
                     )
 
@@ -134,16 +134,16 @@ class SudokuGame:
                         and not self.resized_since_last_board_draw
                     ):
                         # This square has been drawn before
+                        square_rect, square_number = self.squares[square_indx]
 
-                        if (new_number := self.board[row_indx][col_indx]) != self.squares[square_indx][1]:
+                        if (new_number := self.board[row_indx][col_indx]) != square_number:
                             # The number in the square has changed
-                            x = self.squares[square_indx][0].x
-                            y = self.squares[square_indx][0].y
+                            x = square_rect.x
+                            y = square_rect.y
 
                             # Draw the number
-                            self.squares[square_indx] = (self.squares[square_indx][0], new_number)
-
-                            print(coords, self.incorrect_squares_indexes)
+                            self.squares[square_indx] = (square_rect, new_number)
+                            pygame.draw.rect(self.screen, "white", square_rect)
                             self.draw_number(
                                 new_number,
                                 x,
@@ -185,7 +185,7 @@ class SudokuGame:
                         )
 
             if self.prev_selected != self.selected:
-                if self.prev_selected in self.correct_squares_indexes:
+                if self.prev_selected in self.correct_squares_coords:
                     # The previously selected square is now known to be correct
                     # and has therefore already been redrawn, so don't draw it again
                     self.prev_selected = None
@@ -202,7 +202,7 @@ class SudokuGame:
                         prev_selected_square[0].x,
                         prev_selected_square[0].y,
                         # NB: It's not possible to select a correct/hinted/solved square, so we don't have to handle those cases here
-                        colour=WRONG_COLOUR if self.prev_selected in self.incorrect_squares_indexes else INPUT_COLOUR,
+                        colour=WRONG_COLOUR if self.prev_selected in self.incorrect_squares_coords else INPUT_COLOUR,
                     )
 
                 currently_selected_square = (
@@ -215,7 +215,7 @@ class SudokuGame:
                         currently_selected_square[0].x,
                         currently_selected_square[0].y,
                         # NB: It's not possible to select a correct/hinted/solved square, so we don't have to handle those cases here
-                        colour=WRONG_COLOUR if self.selected in self.incorrect_squares_indexes else INPUT_COLOUR,
+                        colour=WRONG_COLOUR if self.selected in self.incorrect_squares_coords else INPUT_COLOUR,
                     )
 
                 self.prev_selected = self.selected
@@ -343,7 +343,7 @@ class SudokuGame:
             print("DEBUG: Verify button clicked")
 
             incorrect_square_indexes = SudokuValidator.get_incorrect_squares(self.solved_board, self.board)
-            for unsure_square_indx in self.unsure_squares_indexes.copy():
+            for unsure_square_indx in self.unsure_squares_coords.copy():
                 row_indx, col_indx = unsure_square_indx
 
                 square_indx = row_indx * 9 + col_indx
@@ -351,12 +351,12 @@ class SudokuGame:
 
                 if unsure_square_indx in incorrect_square_indexes:
                     colour = WRONG_COLOUR
-                    self.incorrect_squares_indexes.add(unsure_square_indx)
+                    self.incorrect_squares_coords.add(unsure_square_indx)
                 else:
                     colour = CORRECT_COLOUR
-                    self.correct_squares_indexes.add(unsure_square_indx)
+                    self.correct_squares_coords.add(unsure_square_indx)
 
-                self.unsure_squares_indexes.discard(unsure_square_indx)
+                self.unsure_squares_coords.discard(unsure_square_indx)
 
                 pygame.draw.rect(self.screen, "white", square_rect)
                 self.draw_number(
@@ -375,12 +375,11 @@ class SudokuGame:
             for row_indx, row in enumerate(self.solved_board):
                 for col_indx, correct_number in enumerate(row):
                     coords = (row_indx, col_indx)
-
                     square_indx = row_indx * 9 + col_indx
                     square_rect, number_in_square = self.squares[square_indx]
 
                     if number_in_square == correct_number:
-                        if self.initial_board[row_indx][col_indx] == 0 and coords not in self.correct_squares_indexes:
+                        if self.initial_board[row_indx][col_indx] == 0 and coords not in self.correct_squares_coords:
                             pygame.draw.rect(self.screen, "white", square_rect)
                             self.draw_number(correct_number, square_rect.x, square_rect.y, colour=CORRECT_COLOUR)
                         continue
@@ -391,13 +390,13 @@ class SudokuGame:
                     if number_in_square == 0:
                         # hasn't entered a number yet
                         colour = SOLVED_COLOUR
-                        self.solved_squares_indexes.add(coords)
+                        self.solved_squares_coords.add(coords)
                     else:
                         # has entered a number, but is was wrong
                         colour = WRONG_COLOUR
-                        self.incorrect_squares_indexes.add(coords)
+                        self.incorrect_squares_coords.add(coords)
 
-                    self.unsure_squares_indexes.discard(coords)
+                    self.unsure_squares_coords.discard(coords)
 
                     pygame.draw.rect(self.screen, "white", square_rect)
                     self.draw_number(
@@ -417,11 +416,12 @@ class SudokuGame:
 
             for row_indx, row in enumerate(self.board):
                 for col_indx, current_number in enumerate(row):
-                    square_indx = row_indx * 9 + col_indx
-                    square_rect = self.squares[square_indx][0]
-
                     if current_number != 0:
                         continue
+
+                    coords = (row_indx, col_indx)
+                    square_indx = row_indx * 9 + col_indx
+                    square_rect = self.squares[square_indx][0]
 
                     correct_number = self.solved_board[row_indx][col_indx]
 
@@ -434,7 +434,7 @@ class SudokuGame:
                     )
                     self.board[row_indx][col_indx] = correct_number
                     self.squares[square_indx] = (square_rect, correct_number)
-                    self.hinted_squares_indexes.add((row_indx, col_indx))
+                    self.hinted_squares_coords.add(coords)
 
                     if SudokuValidator.is_valid_sudoku(self.board, allow_empty=False):
                         self.solved = True
@@ -477,16 +477,18 @@ class SudokuGame:
 
                     # NB: Don't have to include solved squares, since it's
                     # impossible to have solved squares in an unsolved game
-                    known_correct_squares = self.correct_squares_indexes.union(self.hinted_squares_indexes)
+                    known_correct_squares = self.correct_squares_coords.union(self.hinted_squares_coords)
+
                     if (
                         not self.solved  # game is still unsolved
                         and self.initial_board[row_indx][col_indx] == 0  # square is one that requires user input
-                        and (row_indx, col_indx) not in known_correct_squares  # square is not already solved
+                        and (coords := (row_indx, col_indx))
+                        not in known_correct_squares  # square is not already solved
                     ):
-                        if self.selected == (row_indx, col_indx):
+                        if self.selected == coords:
                             self.selected = None
                         else:
-                            self.selected = (row_indx, col_indx)
+                            self.selected = coords
                     else:
                         self.selected = None
                     return
@@ -510,8 +512,8 @@ class SudokuGame:
 
             self.board[row_indx][col_indx] = new_number
 
-            self.unsure_squares_indexes.add(self.selected)
-            self.incorrect_squares_indexes.discard(self.selected)
+            self.unsure_squares_coords.add(self.selected)
+            self.incorrect_squares_coords.discard(self.selected)
             self.selected = None
 
             print(f"DEBUG: {self.board = }")
