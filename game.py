@@ -676,8 +676,8 @@ class SudokuGame:
         self.correct_squares_coords: set[tuple[int, int]] = set()
         self.unsure_squares_coords: set[tuple[int, int]] = set()
 
-        self.actual_screen_width = self.target_screen_width
-        self.actual_screen_height = self.target_screen_height
+        self.actual_screen_width = getattr(self, "actual_screen_width", self.target_screen_width)
+        self.actual_screen_height = getattr(self, "actual_screen_height", self.target_screen_height)
 
         self.calculate_dimensions()
 
