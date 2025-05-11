@@ -29,39 +29,12 @@ class SudokuGame:
     """Main Sudoku game class."""
 
     def __init__(self, difficulty: str, target_screen_width: int, target_screen_height: int):
-        self.generator = SudokuGenerator(difficulty)
-        self.solved_board, self.initial_board = self.generator.generate_random_sudoku()
-
-        SudokuRenderer.draw_sudoku_to_terminal(self.solved_board)
-        SudokuRenderer.draw_sudoku_to_terminal(self.initial_board)
-
-        self.board = [row.copy() for row in self.initial_board]
-        self.prev_selected: tuple[int, int] | None = None
-        self.selected: tuple[int, int] | None = None
-        self.solved = False
-        self.squares = []
-
-        self.buttons: list[Button] = [
-            {"name": "Hint", "colour": HINT_COLOUR, "on_click": self.handle_hint_button_clicked, "rect": None},
-            {"name": "Verify", "colour": "bisque", "on_click": self.handle_verify_button_clicked, "rect": None},
-            {"name": "Solve", "colour": CORRECT_COLOUR, "on_click": self.handle_solve_button_clicked, "rect": None},
-        ]
-
-        self.hinted_squares_coords: set[tuple[int, int]] = set()
-        self.solved_squares_coords: set[tuple[int, int]] = set()
-        self.incorrect_squares_coords: set[tuple[int, int]] = set()
-        self.correct_squares_coords: set[tuple[int, int]] = set()
-        self.unsure_squares_coords: set[tuple[int, int]] = set()
-
-        self.actual_screen_width = target_screen_width
-        self.actual_screen_height = target_screen_height
-
-        self.calculate_dimensions()
+        self.difficulty = difficulty
+        self.target_screen_width = target_screen_width
+        self.target_screen_height = target_screen_height
 
         pygame.init()
         pygame.display.set_caption("Sudoku")
-
-        self.clock = pygame.time.Clock()
 
     def calculate_dimensions(self):
         """Calculate square and border dimensions dynamically."""
@@ -551,5 +524,36 @@ class SudokuGame:
 
     def play(self):
         """Start the game."""
+        self.generator = SudokuGenerator(self.difficulty)
+        self.solved_board, self.initial_board = self.generator.generate_random_sudoku()
+
+        SudokuRenderer.draw_sudoku_to_terminal(self.solved_board)
+        SudokuRenderer.draw_sudoku_to_terminal(self.initial_board)
+
+        self.board = [row.copy() for row in self.initial_board]
+        self.prev_selected: tuple[int, int] | None = None
+        self.selected: tuple[int, int] | None = None
+        self.solved = False
+        self.squares = []
+
+        self.buttons: list[Button] = [
+            {"name": "Hint", "colour": HINT_COLOUR, "on_click": self.handle_hint_button_clicked, "rect": None},
+            {"name": "Verify", "colour": "bisque", "on_click": self.handle_verify_button_clicked, "rect": None},
+            {"name": "Solve", "colour": CORRECT_COLOUR, "on_click": self.handle_solve_button_clicked, "rect": None},
+            {"name": "New Game", "colour": "red", "on_click": self.play, "rect": None},
+        ]
+
+        self.hinted_squares_coords: set[tuple[int, int]] = set()
+        self.solved_squares_coords: set[tuple[int, int]] = set()
+        self.incorrect_squares_coords: set[tuple[int, int]] = set()
+        self.correct_squares_coords: set[tuple[int, int]] = set()
+        self.unsure_squares_coords: set[tuple[int, int]] = set()
+
+        self.actual_screen_width = self.target_screen_width
+        self.actual_screen_height = self.target_screen_height
+
+        self.calculate_dimensions()
+        self.clock = pygame.time.Clock()
+
         self.game_loop()
         pygame.quit()
