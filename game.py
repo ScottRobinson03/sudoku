@@ -149,12 +149,8 @@ class SudokuGame:
                     else:
                         # First time drawing this square
 
-                        x = self.get_x_of_square(
-                            col_indx  # , self.square_width, self.plain_border_width, self.bold_border_width
-                        )
-                        y = self.get_y_of_square(
-                            row_indx  # , self.square_height, self.plain_border_height, self.bold_border_height
-                        )
+                        x = self.get_x_of_square(col_indx)
+                        y = self.get_y_of_square(row_indx)
 
                         number = self.board[row_indx][col_indx]
                         self.squares.append(
