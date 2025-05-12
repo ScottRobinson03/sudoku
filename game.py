@@ -166,7 +166,9 @@ class SudokuGame:
     def draw_board(self):
         """Draw the Sudoku board on the screen."""
 
-        may_require_square_redraw = self.resized_since_last_board_draw or not self.solved
+        may_require_square_redraw = (
+            self.resized_since_last_board_draw or not self.solved or self.prev_solved != self.solved
+        )
         if may_require_square_redraw:
             for row_indx in range(9):
                 for col_indx in range(9):
@@ -243,36 +245,37 @@ class SudokuGame:
                     # The previously selected square is now known to be correct
                     # and has therefore already been redrawn, so don't draw it again
                     self.prev_selected = None
-                    return
-
-                print(f"DEBUG: {self.prev_selected = } {self.selected = }")
-                prev_selected_square = (
-                    self.squares[self.prev_selected[0] * 9 + self.prev_selected[1]] if self.prev_selected else None
-                )
-                if prev_selected_square:
-                    pygame.draw.rect(self.screen, "white", prev_selected_square[0])
-                    self.draw_number(
-                        prev_selected_square[1],
-                        prev_selected_square[0].x,
-                        prev_selected_square[0].y,
-                        # NB: It's not possible to select a correct/hinted/solved square, so we don't have to handle those cases here
-                        colour=WRONG_COLOUR if self.prev_selected in self.incorrect_squares_coords else INPUT_COLOUR,
+                else:
+                    print(f"DEBUG: {self.prev_selected = } {self.selected = }")
+                    prev_selected_square = (
+                        self.squares[self.prev_selected[0] * 9 + self.prev_selected[1]] if self.prev_selected else None
                     )
+                    if prev_selected_square:
+                        pygame.draw.rect(self.screen, "white", prev_selected_square[0])
+                        self.draw_number(
+                            prev_selected_square[1],
+                            prev_selected_square[0].x,
+                            prev_selected_square[0].y,
+                            # NB: It's not possible to select a correct/hinted/solved square, so we don't have to handle those cases here
+                            colour=WRONG_COLOUR
+                            if self.prev_selected in self.incorrect_squares_coords
+                            else INPUT_COLOUR,
+                        )
 
-                currently_selected_square = (
-                    self.squares[self.selected[0] * 9 + self.selected[1]] if self.selected else None
-                )
-                if currently_selected_square:
-                    pygame.draw.rect(self.screen, "yellow", currently_selected_square[0])
-                    self.draw_number(
-                        currently_selected_square[1],
-                        currently_selected_square[0].x,
-                        currently_selected_square[0].y,
-                        # NB: It's not possible to select a correct/hinted/solved square, so we don't have to handle those cases here
-                        colour=WRONG_COLOUR if self.selected in self.incorrect_squares_coords else INPUT_COLOUR,
+                    currently_selected_square = (
+                        self.squares[self.selected[0] * 9 + self.selected[1]] if self.selected else None
                     )
+                    if currently_selected_square:
+                        pygame.draw.rect(self.screen, "yellow", currently_selected_square[0])
+                        self.draw_number(
+                            currently_selected_square[1],
+                            currently_selected_square[0].x,
+                            currently_selected_square[0].y,
+                            # NB: It's not possible to select a correct/hinted/solved square, so we don't have to handle those cases here
+                            colour=WRONG_COLOUR if self.selected in self.incorrect_squares_coords else INPUT_COLOUR,
+                        )
 
-                self.prev_selected = self.selected
+                    self.prev_selected = self.selected
 
             if self.resized_since_last_board_draw:
                 self.draw_buttons()
@@ -588,6 +591,24 @@ class SudokuGame:
             print(f"DEBUG: {self.board = }")
             if SudokuValidator.is_valid_sudoku(self.board, allow_empty=False):
                 print("DEBUG: Sudoku solved!")
+
+                # Ensure that all currently unsure squares are redrawn as correct
+                for coords in self.unsure_squares_coords.copy():
+                    row_indx, col_indx = coords
+                    square_indx = row_indx * 9 + col_indx
+                    square_rect, number_in_square = self.squares[square_indx]
+
+                    pygame.draw.rect(self.screen, "white", square_rect)
+                    self.draw_number(
+                        number_in_square,
+                        square_rect.x,
+                        square_rect.y,
+                        colour=CORRECT_COLOUR,
+                    )
+
+                    self.unsure_squares_coords.discard(coords)
+                    self.correct_squares_coords.add(coords)
+
                 self.solved = True
 
     def update_screen_size(self, new_width, new_height):
@@ -621,7 +642,6 @@ class SudokuGame:
         self.draw_buttons()  # NB: We only need to draw the buttons once, since they don't change
 
         running = True
-        prev_solved = self.solved
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -641,7 +661,7 @@ class SudokuGame:
                     self.update_screen_size(event.w, event.h)
                     continue
 
-            if self.solved == prev_solved:
+            if self.solved == self.prev_solved:
                 if not self.solved or self.resized_since_last_board_draw:
                     self.draw_board()
 
@@ -649,9 +669,10 @@ class SudokuGame:
                         self.draw_updated_buttons()
             else:
                 # Solved state was toggled
+                print("toggled to", self.solved)
                 if self.solved:
-                    prev_solved = True
                     self.draw_board()
+                    self.prev_solved = True
 
             pygame.display.flip()
             if not self.solved:
@@ -674,10 +695,13 @@ class SudokuGame:
         SudokuRenderer.draw_sudoku_to_terminal(self.initial_board)
 
         self.board = [row.copy() for row in self.initial_board]
+        self.squares = []
+
         self.prev_selected: tuple[int, int] | None = None
         self.selected: tuple[int, int] | None = None
+
         self.solved = False
-        self.squares = []
+        self.prev_solved = self.solved
 
         self.prev_dynamic_texts = []
         self.dynamic_buttons: list[DynamicButton] = [
