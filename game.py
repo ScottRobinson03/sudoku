@@ -533,16 +533,12 @@ class SudokuGame:
                 button["on_click"]()
                 return
 
-        # TODO: Possibly refactor to utilise `self.squares` instead of this for loop? Maybe refactor into get_cell_indexes_at_pos()?
         for row_indx in range(9):
             for col_indx in range(9):
-                rect = pygame.Rect(
-                    self.get_x_of_square(col_indx),
-                    self.get_y_of_square(row_indx),
-                    self.square_width,
-                    self.square_height,
-                )
-                if rect.collidepoint(x, y):
+                square_indx = row_indx * 9 + col_indx
+                square_rect = self.squares[square_indx][0]
+
+                if square_rect.collidepoint(x, y):
                     # Clicked on a square
 
                     # NB: Don't have to include solved squares, since it's
