@@ -282,8 +282,11 @@ class SudokuGame:
                 self.resized_since_last_board_draw = False
 
         if self.solved:
-            font = pygame.font.Font(None, 90)  # TODO: Figure out dynamic font size based on square size
-            text = font.render("           Congrats!\nYou solved the Sudoku!", True, CORRECT_COLOUR)
+            solved_msg = "           Congrats!\nYou solved the Sudoku!"
+            font = pygame.font.Font(
+                None, self.calculate_font_size(solved_msg, self.actual_screen_width, self.actual_screen_height)
+            )
+            text = font.render(solved_msg, True, CORRECT_COLOUR)
             text_rect = text.get_rect(center=(self.actual_screen_width // 2, self.actual_screen_height // 2))
             self.screen.blit(text, text_rect)
 
