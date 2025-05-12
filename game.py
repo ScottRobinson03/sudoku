@@ -36,6 +36,7 @@ class ImageButton(BaseButton):
 class TextButton(BaseButton):
     """Text button class."""
 
+    font_size: int
     on_click: Callable
     text: str
 
@@ -100,6 +101,9 @@ class SudokuGame:
 
         self.square_width = int(self.actual_screen_width // 12.875)
         self.square_height = int(self.actual_screen_height // 10.75)
+        self.square_font_size = min(
+            self.calculate_font_size(str(n), self.square_width, self.square_height) for n in range(1, 10)
+        )
 
         self.plain_border_width = int(self.square_width // 8)
         self.plain_border_height = int(self.square_height // 8)
@@ -112,6 +116,12 @@ class SudokuGame:
         for button in self.static_buttons:
             if "image" in button:
                 button["image"] = pygame.transform.scale(button["image"], (self.btn_width, self.btn_height))
+            elif "text" in button:
+                button["font_size"] = self.calculate_font_size(
+                    button["text"],
+                    self.btn_width,
+                    self.btn_height,
+                )
 
         # Adjust screen size based on calculated dimensions
 
@@ -123,6 +133,35 @@ class SudokuGame:
         self.screen = pygame.display.set_mode((self.actual_screen_width, self.actual_screen_height), pygame.RESIZABLE)
 
         self.resized_since_last_board_draw = True
+
+    @staticmethod
+    def calculate_font_size(text: str, max_width: float, max_height: float) -> int:
+        """
+        Determine the maximum font size for the given text to fit within the given pygame.Rect, using binary search.
+
+        :param text: The text to render.
+        :param rect: A pygame.Rect defining the area the text must fit within.
+        :param font_name: The name of the font to use.
+        :return: The maximum font size that fits within the rect.
+        """
+        min_size = 1
+        max_size = max_width
+        best_fit_size = min_size
+
+        while min_size <= max_size:
+            mid_size = int((min_size + max_size) // 2)
+            font = pygame.font.Font(None, mid_size)
+            text_width, text_height = font.size(text)
+
+            if text_width < max_width and text_height < max_height:
+                # If it fits, try a larger size
+                best_fit_size = mid_size
+                min_size = mid_size + 1
+            else:
+                # If it doesn't fit, try a smaller size
+                max_size = mid_size - 1
+
+        return best_fit_size
 
     def draw_board(self):
         """Draw the Sudoku board on the screen."""
@@ -245,7 +284,7 @@ class SudokuGame:
             text_rect = text.get_rect(center=(self.actual_screen_width // 2, self.actual_screen_height // 2))
             self.screen.blit(text, text_rect)
 
-    def draw_buttons(self):  # TODO: Rename to more accurately reflect what it does, e.g. draw_sidebar()
+    def draw_buttons(self):
         """Draw the buttons on the screen."""
 
         buttons_on_row = 0
@@ -276,11 +315,21 @@ class SudokuGame:
                 img_rect = img.get_rect(center=(button_x + button_width // 2, button_y + self.btn_height // 2))
                 self.screen.blit(img, img_rect)
 
-            elif "text" in button or "get_text" in button:
-                btn_text = button["text"] if "text" in button else button["get_text"]()
+            elif "text" in button:
+                btn_text = button["text"]
 
                 # Draw the text
-                font = pygame.font.Font(None, 36)  # TODO: Figure out dynamic font size based on button size
+                font = pygame.font.Font(None, self.square_font_size)
+                text = font.render(btn_text, True, "blue")
+                text_rect = text.get_rect(center=(button_x + button_width // 2, button_y + self.btn_height // 2))
+                self.screen.blit(text, text_rect)
+
+            elif "get_text" in button:
+                # Draw the dynamic text
+                btn_text = button["get_text"]()
+
+                # Draw the text
+                font = pygame.font.Font(None, self.calculate_font_size(btn_text, button_width, self.btn_height))
                 text = font.render(btn_text, True, "blue")
                 text_rect = text.get_rect(center=(button_x + button_width // 2, button_y + self.btn_height // 2))
                 self.screen.blit(text, text_rect)
@@ -298,19 +347,30 @@ class SudokuGame:
     def draw_updated_buttons(self):
         """Handles updating dynamic buttons."""
 
+        dynamic_text_btn_indx = -1
         for button in self.dynamic_buttons:
             if "get_text" in button:
-                # TODO: Optimise to only draw when the text has changed
                 btn_rect = button["rect"]
                 if not btn_rect:
                     continue
 
                 btn_text = button["get_text"]()
 
-                # Draw the text
+                dynamic_text_btn_indx += 1
+                if dynamic_text_btn_indx < len(self.prev_dynamic_texts):
+                    # We've already drawn this button before,
+                    # so ensure the text has changed before redrawing
+                    if self.prev_dynamic_texts[dynamic_text_btn_indx] == btn_text:
+                        continue
+                    else:
+                        self.prev_dynamic_texts[dynamic_text_btn_indx] = btn_text
+                else:
+                    self.prev_dynamic_texts.append(btn_text)
+
+                # Draw the rect & new text
                 pygame.draw.rect(self.screen, button["colour"], btn_rect)
 
-                font = pygame.font.Font(None, 36)
+                font = pygame.font.Font(None, self.calculate_font_size(btn_text, btn_rect.width, btn_rect.height))
                 text = font.render(btn_text, True, "blue")
                 text_rect = text.get_rect(center=(btn_rect.x + btn_rect.width // 2, btn_rect.y + btn_rect.height // 2))
                 self.screen.blit(text, text_rect)
@@ -318,7 +378,7 @@ class SudokuGame:
     def draw_number(self, number, x, y, colour="black"):
         text = str(number) if number else " "
 
-        font = pygame.font.Font(None, 36)  # TODO: Figure out dynamic font size based on square size
+        font = pygame.font.Font(None, self.square_font_size)
         font.set_italic(colour == INPUT_COLOUR)
         text = font.render(text, True, colour)
 
@@ -622,6 +682,7 @@ class SudokuGame:
         self.solved = False
         self.squares = []
 
+        self.prev_dynamic_texts = []
         self.dynamic_buttons: list[DynamicButton] = [
             {
                 "get_text": lambda: f"Mistakes: {self.mistake_count}",
@@ -661,6 +722,7 @@ class SudokuGame:
                 {
                     "text": str(num),
                     "colour": "white",
+                    "font_size": 1,  # NB: font size can be any number, since it will be calculated dynamically anyway. We just include so types are happy
                     "on_click": partial(lambda n,: self.handle_key_press(pygame.key.key_code(str(n))), num),
                     "rect": None,
                 }
